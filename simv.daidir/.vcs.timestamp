@@ -1,0 +1,107 @@
+0 
+38
++incdir+rtl/
++itf+/home/milo/Synopsys/vcs/linux64/lib/vcsdp_lite.tab
++v2k
++vcsd1
++vpi
+-Mamsrun=
+-Masflags=
+-Mcc=gcc-4.8
+-Mcfl= -pipe -fPIC -O -I/home/milo/Synopsys/vcs/include
+-Mcplusplus=g++-4.8
+-Mcrt0=
+-Mcrtn=
+-Mcsrc=
+-Mexternalobj=
+-Mldflags= -Wl,--no-as-needed -rdynamic
+-Mobjects= /home/milo/Synopsys/vcs/linux64/lib/libvirsim.so /home/milo/Synopsys/vcs/linux64/lib/liberrorinf.so /home/milo/Synopsys/vcs/linux64/lib/libsnpsmalloc.so
+-Mout=simv
+-Msaverestoreobj=/home/milo/Synopsys/vcs/linux64/lib/vcs_save_restore_new.o
+-Msyslibs=/home/milo/Synopsys/verdi/share/PLI/VCS/LINUX64/pli.a -ldl
+-Mvcsaceobjs=
+-Mxcflags= -pipe -fPIC -I/home/milo/Synopsys/vcs/include
+-P
+-Xufe=2steps
+-debug_access+r
+-f filelist.f
+-fsdb
+-full64
+-gen_obj
+-kdb
+-l
+-lca
+-o simv
+-picarchive
+-sverilog
+-ucli
+/home/milo/Synopsys/vcs/linux64/bin/vcs1
+/home/milo/Synopsys/verdi/share/PLI/VCS/LINUX64/verdi.tab
+com.log
+50
+sysc_uni_pwd=/home/milo/ICCodes/pcie_axi_bg
+XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir
+XDG_DATA_DIRS=/usr/local/share:/usr/share:/var/lib/snapd/desktop
+WSL_INTEROP=/run/WSL/29598_interop
+WSL_DISTRO_NAME=Ubuntu
+WSLENV=VSCODE_WSL_EXT_LOCATION/up
+WAYLAND_DISPLAY=wayland-0
+VSCODE_IPC_HOOK_CLI=/mnt/wslg/runtime-dir/vscode-ipc-216a8ff8-465a-4e2e-8897-a46c4cc7dba5.sock
+VSCODE_GIT_IPC_HANDLE=/mnt/wslg/runtime-dir/vscode-git-cfb7a7da1b.sock
+VSCODE_GIT_ASKPASS_NODE=/home/milo/.vscode-server/bin/c722ca6c7eed3d7987c0d5c3df5c45f6b15e77d1/node
+VSCODE_GIT_ASKPASS_MAIN=/home/milo/.vscode-server/bin/c722ca6c7eed3d7987c0d5c3df5c45f6b15e77d1/extensions/git/dist/askpass-main.js
+VSCODE_GIT_ASKPASS_EXTRA_ARGS=
+VMR_MODE_FLAG=64
+VERDI_HOME=/home/milo/Synopsys/verdi
+VCS_MX_HOME_INTERNAL=1
+VCS_MODE_FLAG=64
+VCS_LOG_FILE=com.log
+VCS_LCAMSG_PRINT_OFF=1
+VCS_HOME=/home/milo/Synopsys/vcs
+VCS_DEPTH=0
+VCS_ARG_ADDED_FOR_TMP=1
+VCS_ARCH_OVERRIDE=linux
+VCS_ARCH=linux64
+UNAME=/bin/uname
+TURBO_LOG_DIR=/tmp/vcs_20220324020758_3951
+TOOL_HOME=/home/milo/Synopsys/vcs/linux64
+TERM_PROGRAM_VERSION=1.65.2
+TERM_PROGRAM=vscode
+SYNOPSYS=/home/milo/synopsys/dc
+SCRNAME=vcs
+SCRIPT_NAME=vcs
+PULSE_SERVER=/mnt/wslg/PulseServer
+PT_HOME=/home/milo/Synopsys/pt
+OVA_UUM=0
+NOVAS_HOME=/home/milo/Synopsys/verdi
+NAME=milo
+MOTD_SHOWN=update-motd
+MFLAGS=
+MAKE_TERMOUT=/dev/pts/1
+MAKE_TERMERR=/dev/pts/1
+MAKELEVEL=1
+MAKEFLAGS=
+LESSOPEN=| /usr/bin/lesspipe %s
+LESSCLOSE=/usr/bin/lesspipe %s %s
+LC_ALL=C
+HOSTTYPE=x86_64
+GIT_ASKPASS=/home/milo/.vscode-server/bin/c722ca6c7eed3d7987c0d5c3df5c45f6b15e77d1/extensions/git/dist/askpass.sh
+FM_HOME=/home/milo/Synopsys/fm
+DC_HOME=/home/milo/Synopsys/dc
+COLORTERM=truecolor
+0
+8
+1648087447 ./rtl/pulse_merge.v
+1648087426 ./rtl/pcie_tlp_demux.v
+1648087334 ./rtl/pcie_axi_master_wr.v
+1648087334 ./rtl/pcie_axi_master_rd.v
+1648087334 ./rtl/pcie_axi_master.v
+1648087558 filelist.f
+1468145700 /home/milo/Synopsys/verdi/share/PLI/VCS/LINUX64/verdi.tab
+1464145466 /home/milo/Synopsys/vcs/linux64/lib/vcsdp_lite.tab
+4
+0 
+1464147802 /home/milo/Synopsys/vcs/linux64/lib/libvirsim.so
+1464147272 /home/milo/Synopsys/vcs/linux64/lib/liberrorinf.so
+1464147248 /home/milo/Synopsys/vcs/linux64/lib/libsnpsmalloc.so
+1648087680 simv.daidir

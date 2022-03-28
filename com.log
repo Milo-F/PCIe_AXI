@@ -1,0 +1,94 @@
+Command: vcs -full64 -cpp g++-4.8 -cc gcc-4.8 -LDFLAGS -Wl,--no-as-needed +v2k -sverilog \
+-debug_access+r -f filelist.f -ucli -lca -kdb -l com.log -o simv +incdir+rtl/
+*** Using c compiler gcc-4.8 instead of cc ...
+                         Chronologic VCS (TM)
+         Version L-2016.06_Full64 -- Thu Mar 24 10:07:59 2022
+               Copyright (c) 1991-2016 by Synopsys Inc.
+                         ALL RIGHTS RESERVED
+
+This program is proprietary and confidential information of Synopsys Inc.
+and may be used and disclosed only as authorized in a license agreement
+controlling such use and disclosure.
+
+
+Warning-[LCA_FEATURES_ENABLED] Usage warning
+  LCA features enabled by '-lca' argument on the command line.  For more 
+  information regarding list of LCA features please refer to Chapter "LCA 
+  features" in the VCS/VCS-MX Release Notes
+
+Parsing design file './rtl/pcie_axi_master.v'
+Parsing design file './rtl/pcie_axi_master_rd.v'
+Parsing design file './rtl/pcie_axi_master_wr.v'
+Parsing design file './rtl/pcie_tlp_demux.v'
+Parsing design file './rtl/pulse_merge.v'
+Top Level Modules:
+       pcie_axi_master
+TimeScale is 1 ns / 1 ps
+
+Warning-[PCWM-W] Port connection width mismatch
+./rtl/pcie_axi_master.v, 179
+"pcie_tlp_demux #(2, TLP_SEG_COUNT, TLP_SEG_DATA_WIDTH, TLP_SEG_STRB_WIDTH, TLP_SEG_HDR_WIDTH, ) pcie_tlp_demux_inst( .clk (clk),  .rst (rst),  .in_tlp_data (rx_req_tlp_data),  .in_tlp_strb (0),  .in_tlp_hdr (rx_req_tlp_hdr),  .in_tlp_bar_id (0),  .in_tlp_func_num (0),  .in_tlp_error (0),  .in_tlp_valid (rx_req_tlp_valid),  .in_tlp_sop (rx_req_tlp_sop),  .in_tlp_eop (rx_req_tlp_eop),  .in_tlp_ready (rx_req_tlp_ready),  .out_tlp_data ({write_rx_req_tlp_data, read_rx_req_tlp_data}),  .out_tlp_hdr ({write_rx_req_tlp_hdr, read_rx_req_tlp_hdr}),  .out_tlp_valid ({write_rx_req_tlp_valid, read_rx_req_tlp_valid}),  .out_tlp_sop ({write_rx_req_tlp_sop, read_rx_req_tlp_sop}),  .out_tlp_eop ({write_rx_req_tlp_eop, read_rx_req_tlp_eop}),  .out_tlp_ready ({write_rx_r ... "
+  The following 32-bit expression is connected to 8-bit port "in_tlp_strb" of 
+  module "pcie_tlp_demux", instance "pcie_tlp_demux_inst".
+  Expression: 0
+  	use +lint=PCWM for more details
+
+
+Warning-[PCWM-W] Port connection width mismatch
+./rtl/pcie_axi_master.v, 179
+"pcie_tlp_demux #(2, TLP_SEG_COUNT, TLP_SEG_DATA_WIDTH, TLP_SEG_STRB_WIDTH, TLP_SEG_HDR_WIDTH, ) pcie_tlp_demux_inst( .clk (clk),  .rst (rst),  .in_tlp_data (rx_req_tlp_data),  .in_tlp_strb (0),  .in_tlp_hdr (rx_req_tlp_hdr),  .in_tlp_bar_id (0),  .in_tlp_func_num (0),  .in_tlp_error (0),  .in_tlp_valid (rx_req_tlp_valid),  .in_tlp_sop (rx_req_tlp_sop),  .in_tlp_eop (rx_req_tlp_eop),  .in_tlp_ready (rx_req_tlp_ready),  .out_tlp_data ({write_rx_req_tlp_data, read_rx_req_tlp_data}),  .out_tlp_hdr ({write_rx_req_tlp_hdr, read_rx_req_tlp_hdr}),  .out_tlp_valid ({write_rx_req_tlp_valid, read_rx_req_tlp_valid}),  .out_tlp_sop ({write_rx_req_tlp_sop, read_rx_req_tlp_sop}),  .out_tlp_eop ({write_rx_req_tlp_eop, read_rx_req_tlp_eop}),  .out_tlp_ready ({write_rx_r ... "
+  The following 32-bit expression is connected to 3-bit port "in_tlp_bar_id" 
+  of module "pcie_tlp_demux", instance "pcie_tlp_demux_inst".
+  Expression: 0
+  	use +lint=PCWM for more details
+
+
+Warning-[PCWM-W] Port connection width mismatch
+./rtl/pcie_axi_master.v, 179
+"pcie_tlp_demux #(2, TLP_SEG_COUNT, TLP_SEG_DATA_WIDTH, TLP_SEG_STRB_WIDTH, TLP_SEG_HDR_WIDTH, ) pcie_tlp_demux_inst( .clk (clk),  .rst (rst),  .in_tlp_data (rx_req_tlp_data),  .in_tlp_strb (0),  .in_tlp_hdr (rx_req_tlp_hdr),  .in_tlp_bar_id (0),  .in_tlp_func_num (0),  .in_tlp_error (0),  .in_tlp_valid (rx_req_tlp_valid),  .in_tlp_sop (rx_req_tlp_sop),  .in_tlp_eop (rx_req_tlp_eop),  .in_tlp_ready (rx_req_tlp_ready),  .out_tlp_data ({write_rx_req_tlp_data, read_rx_req_tlp_data}),  .out_tlp_hdr ({write_rx_req_tlp_hdr, read_rx_req_tlp_hdr}),  .out_tlp_valid ({write_rx_req_tlp_valid, read_rx_req_tlp_valid}),  .out_tlp_sop ({write_rx_req_tlp_sop, read_rx_req_tlp_sop}),  .out_tlp_eop ({write_rx_req_tlp_eop, read_rx_req_tlp_eop}),  .out_tlp_ready ({write_rx_r ... "
+  The following 32-bit expression is connected to 8-bit port "in_tlp_func_num"
+  of module "pcie_tlp_demux", instance "pcie_tlp_demux_inst".
+  Expression: 0
+  	use +lint=PCWM for more details
+
+
+Warning-[PCWM-W] Port connection width mismatch
+./rtl/pcie_axi_master.v, 179
+"pcie_tlp_demux #(2, TLP_SEG_COUNT, TLP_SEG_DATA_WIDTH, TLP_SEG_STRB_WIDTH, TLP_SEG_HDR_WIDTH, ) pcie_tlp_demux_inst( .clk (clk),  .rst (rst),  .in_tlp_data (rx_req_tlp_data),  .in_tlp_strb (0),  .in_tlp_hdr (rx_req_tlp_hdr),  .in_tlp_bar_id (0),  .in_tlp_func_num (0),  .in_tlp_error (0),  .in_tlp_valid (rx_req_tlp_valid),  .in_tlp_sop (rx_req_tlp_sop),  .in_tlp_eop (rx_req_tlp_eop),  .in_tlp_ready (rx_req_tlp_ready),  .out_tlp_data ({write_rx_req_tlp_data, read_rx_req_tlp_data}),  .out_tlp_hdr ({write_rx_req_tlp_hdr, read_rx_req_tlp_hdr}),  .out_tlp_valid ({write_rx_req_tlp_valid, read_rx_req_tlp_valid}),  .out_tlp_sop ({write_rx_req_tlp_sop, read_rx_req_tlp_sop}),  .out_tlp_eop ({write_rx_req_tlp_eop, read_rx_req_tlp_eop}),  .out_tlp_ready ({write_rx_r ... "
+  The following 32-bit expression is connected to 4-bit port "in_tlp_error" of
+  module "pcie_tlp_demux", instance "pcie_tlp_demux_inst".
+  Expression: 0
+  	use +lint=PCWM for more details
+
+Starting vcs inline pass...
+Parsing design file './rtl/pcie_axi_master.v'
+Parsing design file './rtl/pcie_axi_master_rd.v'
+Parsing design file './rtl/pcie_axi_master_wr.v'
+Parsing design file './rtl/pcie_tlp_demux.v'
+Parsing design file './rtl/pulse_merge.v'
+Top Level Modules:
+       pcie_axi_master
+TimeScale is 1 ns / 1 ps
+4 unique modules to generate
+4 modules and 0 UDP read. 
+recompiling package std
+recompiling module pcie_axi_master
+recompiling module pcie_axi_master_wr
+recompiling module pulse_merge
+All of 4 modules done
+make[1]: Entering directory '/home/milo/ICCodes/pcie_axi_bg/csrc'
+rm -f _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod -x ../simv; fi
+g++-4.8  -o ../simv   -Wl,-rpath-link=./ -Wl,-rpath='$ORIGIN'/simv.daidir/ -Wl,-rpath=./simv.daidir/ \
+-Wl,-rpath='$ORIGIN'/simv.daidir//scsim.db.dir  -Wl,--no-as-needed -rdynamic   amcQwB.o \
+objs/amcQw_d.o   _4419_archive_1.so  SIM_l.o       rmapats_mop.o rmapats.o rmar.o \
+rmar_llvm_0_1.o rmar_llvm_0_0.o          /home/milo/Synopsys/vcs/linux64/lib/libzerosoft_rt_stubs.so \
+/home/milo/Synopsys/vcs/linux64/lib/libvirsim.so /home/milo/Synopsys/vcs/linux64/lib/liberrorinf.so \
+/home/milo/Synopsys/vcs/linux64/lib/libsnpsmalloc.so    /home/milo/Synopsys/vcs/linux64/lib/libvcsnew.so \
+/home/milo/Synopsys/vcs/linux64/lib/libsimprofile.so /home/milo/Synopsys/vcs/linux64/lib/libuclinative.so \
+-Wl,-whole-archive /home/milo/Synopsys/vcs/linux64/lib/libvcsucli.so -Wl,-no-whole-archive \
+_vcs_pli_stub_.o   /home/milo/Synopsys/vcs/linux64/lib/vcs_save_restore_new.o /home/milo/Synopsys/verdi/share/PLI/VCS/LINUX64/pli.a \
+-ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+make[1]: Leaving directory '/home/milo/ICCodes/pcie_axi_bg/csrc'
+CPU time: .825 seconds to compile + .434 seconds to elab + .201 seconds to link

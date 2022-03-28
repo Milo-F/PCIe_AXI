@@ -1,0 +1,27 @@
+{
+    "std": [
+        "std",
+        "reYIK",
+        "module"
+    ],
+    "pcie_axi_master": [
+        "pcie_axi_master",
+        "FPzKR",
+        "module"
+    ],
+    "...MASTER...": [
+        "SIM",
+        "amcQw",
+        "module"
+    ],
+    "pcie_axi_master_wr": [
+        "pcie_axi_master_wr",
+        "fjtSY",
+        "module"
+    ],
+    "pulse_merge": [
+        "pulse_merge",
+        "gx1Vt",
+        "module"
+    ]
+}

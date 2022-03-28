@@ -1,0 +1,113 @@
+{
+    "PrevCompiledModules": {},
+    "MlibObjs": {},
+    "CompileProcesses": [
+        "cgproc.4419.json"
+    ],
+    "NameTable": {
+        "std": [
+            "std",
+            "reYIK",
+            "module"
+        ],
+        "pcie_axi_master": [
+            "pcie_axi_master",
+            "FPzKR",
+            "module"
+        ],
+        "...MASTER...": [
+            "SIM",
+            "amcQw",
+            "module"
+        ],
+        "pcie_axi_master_wr": [
+            "pcie_axi_master_wr",
+            "fjtSY",
+            "module"
+        ],
+        "pulse_merge": [
+            "pulse_merge",
+            "gx1Vt",
+            "module"
+        ]
+    },
+    "CompileStrategy": "fullobj",
+    "stat": {
+        "mop/quad": 2.8654615261558152,
+        "quadSpeed": 71299.844876357354,
+        "ru_self_cgstart": {
+            "ru_utime_sec": 0.47950199999999998,
+            "ru_stime_sec": 0.031627000000000002,
+            "ru_nvcsw": 136,
+            "ru_maxrss_kb": 107568,
+            "ru_minflt": 9834,
+            "ru_majflt": 8,
+            "ru_nivcsw": 4
+        },
+        "CodeGen(%)": 15.457690232627021,
+        "ru_childs_cgstart": {
+            "ru_utime_sec": 0.001768,
+            "ru_stime_sec": 0.0,
+            "ru_nvcsw": 1,
+            "ru_maxrss_kb": 105036,
+            "ru_minflt": 204,
+            "ru_majflt": 0,
+            "ru_nivcsw": 0
+        },
+        "nMops": 17912,
+        "outputSizePerQuad": 50.0,
+        "nQuads": 6251,
+        "totalObjSize": 313150,
+        "ru_self_end": {
+            "ru_utime_sec": 0.56717399999999996,
+            "ru_stime_sec": 0.061872999999999997,
+            "ru_nvcsw": 137,
+            "ru_maxrss_kb": 118536,
+            "ru_minflt": 11923,
+            "ru_majflt": 10,
+            "ru_nivcsw": 4
+        },
+        "mopSpeed": 204306.96231407981,
+        "ru_childs_end": {
+            "ru_utime_sec": 0.001768,
+            "ru_stime_sec": 0.0,
+            "ru_nvcsw": 1,
+            "ru_maxrss_kb": 105036,
+            "ru_minflt": 204,
+            "ru_majflt": 0,
+            "ru_nivcsw": 0
+        },
+        "Frontend(%)": 84.54230976737297
+    },
+    "SIMBData": {
+        "out": "amcQwB.o",
+        "bytes": 104389
+    },
+    "CurCompileUdps": {},
+    "PEModules": [],
+    "CurCompileModules": [
+        "...MASTER...",
+        "...MASTER...",
+        "std",
+        "std",
+        "pcie_axi_master",
+        "pcie_axi_master",
+        "pcie_axi_master_wr",
+        "pcie_axi_master_wr",
+        "pulse_merge",
+        "pulse_merge"
+    ],
+    "LVLData": [
+        "SIM"
+    ],
+    "CompileStatus": "Successful",
+    "Misc": {
+        "cwd": "/home/milo/ICCodes/pcie_axi_bg",
+        "daidir": "/home/milo/ICCodes/pcie_axi_bg/simv.daidir",
+        "csrc": "csrc",
+        "csrc_abs": "/home/milo/ICCodes/pcie_axi_bg/csrc",
+        "default_output_dir": "csrc",
+        "daidir_abs": "/home/milo/ICCodes/pcie_axi_bg/simv.daidir",
+        "archive_dir": "archive.0"
+    }
+}
