@@ -1,0 +1,74 @@
+Command: vcs -full64 -cpp g++-4.8 -cc gcc-4.8 -LDFLAGS -Wl,--no-as-needed +v2k -sverilog \
+-debug_access+r -f filelist.f -ucli -lca -kdb -l com.log -o simv +incdir+rtl/
+*** Using c compiler gcc-4.8 instead of cc ...
+                         Chronologic VCS (TM)
+         Version L-2016.06_Full64 -- Tue Mar 29 14:38:20 2022
+               Copyright (c) 1991-2016 by Synopsys Inc.
+                         ALL RIGHTS RESERVED
+
+This program is proprietary and confidential information of Synopsys Inc.
+and may be used and disclosed only as authorized in a license agreement
+controlling such use and disclosure.
+
+
+Warning-[LCA_FEATURES_ENABLED] Usage warning
+  LCA features enabled by '-lca' argument on the command line.  For more 
+  information regarding list of LCA features please refer to Chapter "LCA 
+  features" in the VCS/VCS-MX Release Notes
+
+Parsing design file './tb/tb_tlp_demux.v'
+Parsing design file './rtl/tlp_demux.v'
+Top Level Modules:
+       tb_tlp_demux
+TimeScale is 1 ns / 1 ps
+
+Warning-[SIOB] Select index out of bounds
+./rtl/tlp_demux.v, 248
+"status[ALL_1_BIT]"
+  The select index is out of declared bounds : [7:0].
+  In module instance : tlp_demux_ins 
+  In module : tlp_demux.
+
+
+Warning-[SIOB] Select index out of bounds
+./rtl/tlp_demux.v, 81
+"in_hdr[HEADER_SIZE-:8]"
+  The select index is out of declared bounds : [127:0].
+  In module instance : tlp_demux_ins 
+  In module : tlp_demux.
+
+
+Warning-[SIOB] Select index out of bounds
+./rtl/tlp_demux.v, 81
+"in_hdr[HEADER_SIZE-:8]"
+  The select index is out of declared bounds : [127:0].
+  In module instance : tlp_demux_ins 
+  In module : tlp_demux.
+
+Starting vcs inline pass...
+Parsing design file './tb/tb_tlp_demux.v'
+Parsing design file './rtl/tlp_demux.v'
+Top Level Modules:
+       tb_tlp_demux
+TimeScale is 1 ns / 1 ps
+2 unique modules to generate
+2 modules and 0 UDP read. 
+recompiling package std
+recompiling module tb_tlp_demux
+All of 2 modules done
+make[1]: Entering directory '/home/milo/ICCodes/pcie_axi_bg/csrc'
+rm -f _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod -x ../simv; fi
+g++-4.8  -o ../simv   -Wl,-rpath-link=./ -Wl,-rpath='$ORIGIN'/simv.daidir/ -Wl,-rpath=./simv.daidir/ \
+-Wl,-rpath='$ORIGIN'/simv.daidir//scsim.db.dir  -Wl,--no-as-needed -rdynamic   amcQwB.o \
+objs/amcQw_d.o   _18609_archive_1.so  SIM_l.o       rmapats_mop.o rmapats.o rmar.o \
+rmar_llvm_0_1.o rmar_llvm_0_0.o          /home/milo/Synopsys/vcs/linux64/lib/libzerosoft_rt_stubs.so \
+/home/milo/Synopsys/vcs/linux64/lib/libvirsim.so /home/milo/Synopsys/vcs/linux64/lib/liberrorinf.so \
+/home/milo/Synopsys/vcs/linux64/lib/libsnpsmalloc.so    /home/milo/Synopsys/vcs/linux64/lib/libvcsnew.so \
+/home/milo/Synopsys/vcs/linux64/lib/libsimprofile.so /home/milo/Synopsys/vcs/linux64/lib/libuclinative.so \
+-Wl,-whole-archive /home/milo/Synopsys/vcs/linux64/lib/libvcsucli.so -Wl,-no-whole-archive \
+_vcs_pli_stub_.o   /home/milo/Synopsys/vcs/linux64/lib/vcs_save_restore_new.o /home/milo/Synopsys/verdi/share/PLI/VCS/LINUX64/pli.a \
+-ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+make[1]: Leaving directory '/home/milo/ICCodes/pcie_axi_bg/csrc'
+CPU time: .536 seconds to compile + .254 seconds to elab + .313 seconds to link

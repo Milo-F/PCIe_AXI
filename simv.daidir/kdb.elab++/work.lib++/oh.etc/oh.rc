@@ -1,0 +1,5 @@
+@elabcom rc file Version 1.0
+[oh]
+invokeDir = /home/milo/ICCodes/pcie_axi_bg
+hostCommand = -lib /home/milo/ICCodes/pcie_axi_bg/simv.daidir/work -elab /home/milo/ICCodes/pcie_axi_bg/simv.daidir/kdb -simflow -top "tb_tlp_demux " -Lf work -SNPS_ELABCOM -saveElab
+simType = VCS

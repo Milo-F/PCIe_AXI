@@ -1,0 +1,55 @@
+{
+    "Modules": {
+        "...MASTER...": {},
+        "std": {
+            "Compiled": "Yes",
+            "Compiled Times": 1
+        },
+        "tb_tlp_demux": {
+            "Compiled": "Yes",
+            "Compiled Times": 1
+        }
+    },
+    "CompUnits": {
+        "amcQw_d": {
+            "mod": "...MASTER...",
+            "mode": 4,
+            "out": "objs/amcQw_d.o",
+            "bytes": 7395,
+            "checksum": 0
+        },
+        "reYIK_d": {
+            "mod": "std",
+            "mode": 4,
+            "out": "reYIK_d.o",
+            "bytes": 33296,
+            "checksum": 0,
+            "archive": "archive.0/_18609_archive_1.a"
+        },
+        "vNH7p_d": {
+            "mod": "tb_tlp_demux",
+            "mode": 4,
+            "out": "vNH7p_d.o",
+            "bytes": 368376,
+            "checksum": 0,
+            "archive": "archive.0/_18609_archive_1.a"
+        }
+    },
+    "reusePaths": {},
+    "ObjArchives": [
+        {
+            "archive": "archive.0/_18609_archive_1.a",
+            "objects": [
+                [
+                    "reYIK_d.o",
+                    33296
+                ],
+                [
+                    "vNH7p_d.o",
+                    368376
+                ]
+            ],
+            "size": 401672
+        }
+    ]
+}

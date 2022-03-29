@@ -1,0 +1,5 @@
+@libnz4w_r.so rc file Version 1.0
+[oh]
+invokeDir = /home/milo/ICCodes/pcie_axi_bg
+hostCommand = -usevlogan_front -lib /home/milo/ICCodes/pcie_axi_bg/simv.daidir/work -2012 -enable_vfs_mp -enable_vfs_mt -flush_textdoc_sdb -enable_vfs_lock -incsave
+simType = VCS
