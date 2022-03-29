@@ -1,3 +1,0 @@
-*design* DebussyLib (btIdent Verdi3_L-2016.06)
-Command arguments:  -lib  /home/milo/ICCodes/pcie_axi_bg/simv.daidir/work  -elab  /home/milo/ICCodes/pcie_axi_bg/simv.daidir/kdb  -simflow  -top  pcie_axi_master   -Lf  work  -SNPS_ELABCOM  -saveElab 
-Total	0 error(s),   0 warning(s)

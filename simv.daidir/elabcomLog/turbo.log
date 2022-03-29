@@ -1,3 +1,0 @@
-Command Line: /home/milo/Synopsys/vcs/linux64/bin/elabcom -logdir /home/milo/ICCodes/pcie_axi_bg/simv.daidir/elabcomLog -simvdaidir /home/milo/ICCodes/pcie_axi_bg/simv.daidir -lib /home/milo/ICCodes/pcie_axi_bg/simv.daidir/work -elab /home/milo/ICCodes/pcie_axi_bg/simv.daidir/kdb -simflow -top pcie_axi_master  -Lf work
-uname(Linux milo 5.10.16.3-microsoft-standard-WSL2 #1 SMP Fri Apr 2 22:23:49 UTC 2021 x86_64)
-au time 0.089771 0.061598 0.011043 delta 228802560 228802560 total 291274752 291274752
