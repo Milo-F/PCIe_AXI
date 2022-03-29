@@ -8,11 +8,11 @@ module tb_tlp_demux();
     reg                                                     clk;
     reg                                                     rst_n;
     // input TLP
-    reg                     [PAYLOAD_SIZE-1:0]              in_data;
-    reg                     [HEADER_SIZE-1:0]               in_hdr;
-    reg                                                     in_sop;
-    reg                                                     in_eop;
-    reg                                                     in_valid;
+    wire                    [PAYLOAD_SIZE-1:0]              in_data;
+    wire                    [HEADER_SIZE-1:0]               in_hdr;
+    wire                                                    in_sop;
+    wire                                                    in_eop;
+    wire                                                    in_valid;
     wire                                                    in_ready;
     // read TLP out
     wire                    [PAYLOAD_SIZE-1:0]              r_out_data;
@@ -30,7 +30,52 @@ module tb_tlp_demux();
     reg                                                     w_out_ready;
     // control
     reg                                                     enable;
-    
+    // generate clock
+    initial begin
+        clk            = 0;
+        forever #1 clk = ~clk;
+    end
+    // reset
+    initial begin
+        enable = 1;
+        rst_n     = 1'b1;
+        #10 rst_n = 0;
+        #10 rst_n = 1'b1;
+    end
+    reg test;
+    initial begin
+        w_out_ready = 0;
+        forever begin
+            repeat(5) @(posedge clk);
+            w_out_ready = 1;;
+            @(posedge clk);
+            w_out_ready = 0;
+        end
+    end
+    initial begin
+        r_out_ready = 0;
+        forever begin
+            repeat(10) @(posedge clk);
+            r_out_ready = 1;
+            @(posedge clk);
+            r_out_ready = 0;
+        end
+    end
+    // tlp包发送模块，用于产生随机的tlp包，包括读存储器包、写存储器包以及非法包。每当in_ready信号为1时，包持续1拍再变换。
+    tlp_tx #(
+        .DOUBLE_WORD(DOUBLE_WORD),
+        .HEADER_SIZE(HEADER_SIZE),
+        .PAYLOAD_SIZE(PAYLOAD_SIZE)
+    ) tlp_tx (
+        .clk(clk),
+        .rst_n(rst_n),
+        .in_ready(in_ready),
+        .in_data(in_data),
+        .in_hdr(in_hdr),
+        .in_sop(in_sop),
+        .in_eop(in_eop),
+        .in_valid(in_valid)
+    );
     tlp_demux #(
         .PORTS(PORTS),
         .DOUBLE_WORD(DOUBLE_WORD),

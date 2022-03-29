@@ -75,10 +75,10 @@ module tlp_demux #(
     wire                                                    wr_rd;    // TLP为写类型：1；TLP为读类型：0
     wire                                                    tmp_wr_rd;
     wire                                                    islegal;
-    localparam RD_FMT_TYPE = 8'b010_00000;
+    localparam RD_FMT_TYPE = 8'b001_00000;
     localparam WR_FMT_TYPE = 8'b011_00000;
     // 判断输入TLP是否为存储区读写TLP
-    assign islegal   = (in_hdr[HEADER_SIZE-:8] == RD_FMT_TYPE) || (in_hdr[HEADER_SIZE-:8] == WR_FMT_TYPE);
+    assign islegal   = (in_hdr[(HEADER_SIZE-1)-:8] == RD_FMT_TYPE) || (in_hdr[(HEADER_SIZE-1)-:8] == WR_FMT_TYPE);
     assign wr_rd     = in_hdr[HEADER_SIZE-2];
     assign tmp_wr_rd = tmp_hdr[HEADER_SIZE-2];
     
@@ -100,14 +100,14 @@ module tlp_demux #(
     localparam R_0     = 8'b0100_0000; //     1        1        0
     localparam ALL_1   = 8'b1000_0000; //     1        1        1
     
-    localparam ALL_0_BIT   = 1;
-    localparam TMP_W_0_BIT = 2;
-    localparam TMP_R_0_BIT = 3;
-    localparam TMP_0_BIT   = 4;
-    localparam W_R_0_BIT   = 5;
-    localparam W_0_BIT     = 6;
-    localparam R_0_BIT     = 7;
-    localparam ALL_1_BIT   = 8;
+    localparam ALL_0_BIT   = 0;
+    localparam TMP_W_0_BIT = 1;
+    localparam TMP_R_0_BIT = 2;
+    localparam TMP_0_BIT   = 3;
+    localparam W_R_0_BIT   = 4;
+    localparam W_0_BIT     = 5;
+    localparam R_0_BIT     = 6;
+    localparam ALL_1_BIT   = 7;
     // flags
     reg                     [7:0]                           status,status_nxt;
     reg                                                     in_to_w;
@@ -264,7 +264,7 @@ module tlp_demux #(
     end
     always @(posedge clk) begin
         if (!rst_n) begin
-            status   <= 8'b0;
+            status   <= 8'b1;
             in_ready <= 1'b0;
         end
         else begin
