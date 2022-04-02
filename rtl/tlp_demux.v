@@ -7,23 +7,23 @@ module tlp_demux #(
     PORTS                   =        2,                                  // 解复用输出端口，在此解复用器用作读写复用，故为2
     DOUBLE_WORD             =        32,                                 // 双字，32位
     HEADER_SIZE             =        4*DOUBLE_WORD,                      // Header4个双字，取决于host内存空间是否大于4GB
-    PAYLOAD_SIZE            =        8*DOUBLE_WORD                       // 数据荷载8个双字
+    TLP_DATA_WIDTH          =        8*DOUBLE_WORD                       // 数据荷载8个双字
 ) (
     input       wire                                        clk,
     input       wire                                        rst_n,
-    input       wire        [PAYLOAD_SIZE-1:0]              in_data,     // 输入TLP包数据
+    input       wire        [TLP_DATA_WIDTH-1:0]            in_data,     // 输入TLP包数据
     input       wire        [HEADER_SIZE-1:0]               in_hdr,      // 输入TLP包头
     input       wire                                        in_sop,
     input       wire                                        in_eop,
     input       wire                                        in_valid,
     output      reg                                         in_ready,
-    output      reg         [PAYLOAD_SIZE-1:0]              r_out_data,  // 输出读请求TLP包
+    output      reg         [TLP_DATA_WIDTH-1:0]            r_out_data,  // 输出读请求TLP包
     output      reg         [HEADER_SIZE-1:0]               r_out_hdr,
     output      reg                                         r_out_sop,
     output      reg                                         r_out_eop,
     output      reg                                         r_out_valid,
     input                                                   r_out_ready,
-    output      reg         [PAYLOAD_SIZE-1:0]              w_out_data,  // 输出写请求TLP包
+    output      reg         [TLP_DATA_WIDTH-1:0]            w_out_data,  // 输出写请求TLP包
     output      reg         [HEADER_SIZE-1:0]               w_out_hdr,
     output      reg                                         w_out_sop,
     output      reg                                         w_out_eop,
@@ -35,7 +35,7 @@ module tlp_demux #(
     /*
      * 输出读请求TLP
      */
-    reg                     [PAYLOAD_SIZE-1:0]              r_out_data_nxt;
+    reg                     [TLP_DATA_WIDTH-1:0]            r_out_data_nxt;
     reg                     [HEADER_SIZE-1:0]               r_out_hdr_nxt;
     reg                                                     r_out_sop_nxt;
     reg                                                     r_out_eop_nxt;
@@ -43,7 +43,7 @@ module tlp_demux #(
     /*
      * 输出写请求TLP
      */
-    reg                     [PAYLOAD_SIZE-1:0]              w_out_data_nxt;
+    reg                     [TLP_DATA_WIDTH-1:0]            w_out_data_nxt;
     reg                     [HEADER_SIZE-1:0]               w_out_hdr_nxt;
     reg                                                     w_out_sop_nxt;
     reg                                                     w_out_eop_nxt;
@@ -51,7 +51,7 @@ module tlp_demux #(
     /*
      * 输入TLP筛选，主要控制valid信号，筛除不合格的TLP
      */
-    wire                    [PAYLOAD_SIZE-1:0]              in_data_wire;
+    wire                    [TLP_DATA_WIDTH-1:0]            in_data_wire;
     wire                    [HEADER_SIZE-1:0]               in_hdr_wire;
     wire                                                    in_sop_wire;
     wire                                                    in_eop_wire;
@@ -60,7 +60,7 @@ module tlp_demux #(
     /*
      * 内部TLP缓存，
      */
-    reg                     [PAYLOAD_SIZE-1:0]              tmp_data,tmp_data_nxt;
+    reg                     [TLP_DATA_WIDTH-1:0]            tmp_data,tmp_data_nxt;
     reg                     [HEADER_SIZE-1:0]               tmp_hdr,tmp_hdr_nxt;
     reg                                                     tmp_sop,tmp_sop_nxt;
     reg                                                     tmp_eop,tmp_eop_nxt;
