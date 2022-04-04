@@ -25,7 +25,7 @@ endif
 ifeq ($(TB_LANG), systemverilog)
 	COM_OP += -sverilog
 endif
-DEBUG_OP ?= -debug_access+r
+DEBUG_OP ?= -debug_all -fsdb
 UCLI ?= -ucli
 VERDI_OP = -lca -kdb
 INCDIR ?= rtl/

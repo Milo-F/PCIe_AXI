@@ -56,8 +56,84 @@ module wr_tlp_axi #(
     reg                                                     axi_bready_nxt;
     // TLP
     reg                                                     tlp_ready_nxt;
+    // TLP header 解析
+    wire                    [2:0]                           hdr_fmt;    // 1/0 fmt[1]:with data(Wr)/no data(Rd); fmt[0] 4DW/3DW; fmt:100 prefix
+    wire                    [4:0]                           hdr_type;    // 00000 memory TLP
+    wire                    [2:0]                           hdr_tc;    // 优先级控制，支持QoS的PCIe设备对于每种不同的TLP传输有不同的VCbuffer
+    wire                    [2:0]                           hdr_attr;    //attr[2]在tc后面，用于控制ID-based ordering；attr[1:0]用于控制是否支持relax ordering用于支持PCI-X设备。
+    wire                                                    hdr_ln;    // Lightweight Notification模式，轻量级通知，通过EP注册主机的cacheline并复制数据到自己的cache实现降低延迟PCIe4.0引入，6.0取消，
+    wire                                                    hdr_th;    // 标识TLP processing hints（TPH）的存在，就是header的最低2位ph
+    wire                                                    hdr_td;    // 标识digest的存在
+    wire                                                    hdr_ep;    // 标识数据无效
+    wire                    [1:0]                           hdr_at;    // 标识地址类型，00默认不翻译，01需要翻译，10已经翻译过了，11保留
+    wire                    [10:0]                          hdr_length;    // [9:0] 标识携带的数据长度，最多1024DW，最少1DW
+    wire                    [15:0]                          hdr_req_id;
+    wire                    [9:0]                           hdr_tag;
+    wire                    [7:0]                           hdr_first_be;
+    wire                    [7:0]                           hdr_last_be;
+    wire                    [63:0]                          hdr_addr;
+    wire                    [1:0]                           hdr_ph;    // processing hints,标识数据访问模式，00，双向，01，由ep发起request，10，由host发起读写，11，由host发起读写且高临时性
+    assign hdr_fmt      = tlp_hdr[127:125];
+    assign hdr_type     = tlp_hdr[124:120];
+    assign hdr_tc       = tlp_hdr[118:116];
+    assign hdr_attr     = {tlp_hdr[114], tlp_hdr[109:108]};
+    assign hdr_ln       = tlp_hdr[113];
+    assign hdr_th       = tlp_hdr[112];
+    assign hdr_td       = tlp_hdr[111];
+    assign hdr_ep       = tlp_hdr[110];
+    assign hdr_at       = tlp_hdr[107:106];
+    assign hdr_length   = {tlp_hdr[105:96] == 10'b0, tlp_hdr[105:96]};
+    assign hdr_req_id   = tlp_hdr[95:80];
+    assign hdr_tag      = {tlp_hdr[119], tlp_hdr[116], tlp_hdr[79:72]};
+    assign hdr_last_be  = tlp_hdr[71:68];
+    assign hdr_first_be = tlp_hdr[67:64];
+    assign hdr_addr     = hdr_fmt[0] ? {tlp_hdr[63:2], 2'b0} : {tlp_hdr[63:34],34'b0}; // 分为4DW和3DW对应于64位地址和32位地址
+    assign hdr_ph       = hdr_fmt[0] ? tlp_hdr[1:0] : tlp_hdr[33:32];
+    
+    // 内部fifo控制信号
+    wire                                                    fifo_full;
+    reg                                                     w_en;
+    wire                                                    fifo_empty;
+    reg                                                     r_en;
+    wire                                                    effc_tlp_valid;    // 有效tlp使能
+    // assign effc_tlp_valid = tlp_valid & !hdr_ep;
+    // assign w_en           = tlp_ready & effc_tlp_valid;
+    // // tlp_ready 产生
+    // always @* begin
+    //     tlp_ready_nxt = (!fifo_full & !tlp_ready)|tlp_ready;
+    // end
+    // always @(posedge clk) begin
+    //     if (!rst_n) begin
+    //         tlp_ready <= 0;
+    //     end
+    //     else begin
+    //         tlp_ready <= tlp_ready_nxt;
+    //     end
+    // end
+    reg                                                     start_tx,start_tx_nxt;
     /*
-     * 状态机配置
+     * 接收状态机配置
+     */
+    localparam RX_BUSY  = 1'b1;
+    localparam RX_WAITE = 1'b0;
+    reg                                                     rx_status,rx_status_nxt;
+    always @* begin
+        rx_status_nxt = rx_status;
+        tlp_ready_nxt = tlp_ready;
+        case (rx_status)
+            RX_BUSY: begin
+                if (!fifo_full) begin
+                    
+                end
+            end
+            RX_WAITE: begin // 等待AXI发送结束
+                
+            end
+            default:;
+        endcase
+    end
+    /*
+     * 发送状态机配置
      */
     // 状态定义
     localparam IDLE      = 3'b001;
@@ -70,10 +146,42 @@ module wr_tlp_axi #(
     // 状态寄存器
     reg                     [2:0]                           status,status_nxt;
     // 发送子状态机定义
-    localparam START    = 2'b0;
-    localparam CONTINUE = 2'b1;
-    localparam END      = 2'b2;
+    localparam START_TR    = 2'b0;
+    localparam CONTINUE_TR = 2'b1;
+    localparam END_TR      = 2'b2;
     reg                     [1:0]                           tr_status,tr_status_nxt;
-    
+    // 状态转移，控制数据从fifo到axi的发送状态
+    always @* begin
+        status_nxt    = status;
+        tr_status_nxt = tr_status;
+        // tlp
+        tlp_ready_nxt = tlp_ready;
+        case (1'b1)
+            status[IDLE_IDX]: begin // 总线空闲，数据有效
+                tlp_ready_nxt = 1'b1; // 空闲状态ready保持有效
+                if (effc_tlp_valid & tlp_sop) begin // 如果数据有效
+                    
+                end
+            end
+            status[TRANSFER_IDX]: begin
+                case (tr_status)
+                    START_TR: begin
+                        
+                    end
+                    CONTINUE_TR: begin
+                        
+                    end
+                    END_TR: begin
+                        
+                    end
+                    default:;
+                endcase
+            end
+            status[WAITE_END_IDX]: begin
+                
+            end
+            default:;
+        endcase
+    end
     
 endmodule

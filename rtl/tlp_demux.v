@@ -16,7 +16,7 @@ module tlp_demux #(
     input       wire                                        in_sop,
     input       wire                                        in_eop,
     input       wire                                        in_valid,
-    output      reg                                         in_ready,
+    output                                                  in_ready,
     output      reg         [TLP_DATA_WIDTH-1:0]            r_out_data,  // 输出读请求TLP包
     output      reg         [HEADER_SIZE-1:0]               r_out_hdr,
     output      reg                                         r_out_sop,
@@ -32,6 +32,7 @@ module tlp_demux #(
     input       wire                                        enable
 );
     reg                                                     in_ready_nxt;
+    assign in_ready = in_ready_nxt;
     /*
      * 输出读请求TLP
      */
@@ -115,6 +116,7 @@ module tlp_demux #(
     reg                                                     in_to_tmp;
     reg                                                     tmp_to_w;
     reg                                                     tmp_to_r;
+    reg                                                     shut_w,shut_r;
     // 产生ready信号，控制状态转移
     always @* begin
         status_nxt   = status;
@@ -125,22 +127,31 @@ module tlp_demux #(
         in_to_tmp = 0;
         tmp_to_w  = 0;
         tmp_to_r  = 0;
+        shut_w    = 0;
+        shut_r    = 0;
         case(1'b1)
             status[ALL_0_BIT]: begin
                 in_ready_nxt = 1'b1;
-                if (in_valid_wire) begin // 输入数据有效
+                // shut_r    = 1;
+                // shut_w    = 1;
+                if (in_valid_wire & in_ready) begin // 输入数据有效
                     in_to_w    = wr_rd; // 写请求
                     in_to_r    = !wr_rd; // 读请求
                     status_nxt = (wr_rd) ? TMP_R_0 : TMP_W_0;
+                    // shut_w  = wr_rd ? 0:1;
+                    // shut_r  = wr_rd ? 1:0;
                 end
             end
             status[TMP_W_0_BIT]: begin
                 in_ready_nxt = 1'b1;
-                if (in_valid_wire) begin // 输入数据有效
+                // shut_w    = 1;
+                if (in_valid_wire & in_ready) begin // 输入数据有效
+                    // shut_w = wr_rd ? 0:1;
                     if (r_out_ready) begin
                         in_to_r    = !wr_rd;
                         in_to_w    = wr_rd;
                         status_nxt = wr_rd ? TMP_R_0 : TMP_W_0;
+                        // shut_r  = 1;
                     end
                     else begin
                         in_to_tmp  = !wr_rd;
@@ -150,17 +161,22 @@ module tlp_demux #(
                 end
                 else begin
                     if (r_out_ready) begin
+                        shut_r     = 1'b1; // 将R数据置为无效
                         status_nxt = ALL_0;
+                        
                     end
                 end
             end
             status[TMP_R_0_BIT]: begin
                 in_ready_nxt = 1'b1;
-                if (in_valid_wire) begin // 输入数据有效
+                // shut_r    = 1;
+                if (in_valid_wire & in_ready) begin // 输入数据有效
+                    // shut_r = wr_rd?1:0;
                     if (w_out_ready) begin
                         in_to_r    = !wr_rd;
                         in_to_w    = wr_rd;
                         status_nxt = wr_rd ? TMP_R_0 : TMP_W_0;
+                        // shut_w  = 1;
                     end
                     else begin
                         in_to_tmp  = wr_rd;
@@ -171,27 +187,32 @@ module tlp_demux #(
                 else begin
                     if (r_out_ready) begin
                         status_nxt = ALL_0;
+                        shut_r     = 1;
                     end
                 end
             end
             status[TMP_0_BIT]: begin
                 in_ready_nxt = 1'b1;
-                if (in_valid_wire) begin
+                if (in_valid_wire & in_ready) begin
                     if (w_out_ready | r_out_ready) begin
                         if (w_out_ready & r_out_ready) begin
                             in_to_w    = wr_rd; // 写请求
                             in_to_r    = !wr_rd; // 读请求
                             status_nxt = (wr_rd) ? TMP_R_0 : TMP_W_0;
+                            shut_r     = 1;
+                            shut_w     = 1;
                         end
                         else if (w_out_ready) begin
                             in_to_tmp  = !wr_rd;
                             in_to_w    = wr_rd;
                             status_nxt = wr_rd ? TMP_0 : W_0;
+                            shut_w     = 1;
                         end
                         else begin
                             in_to_tmp  = wr_rd;
                             in_to_r    = !wr_rd;
                             status_nxt = wr_rd ? R_0 : TMP_0;
+                            shut_r     = 1;
                         end
                     end
                     else begin
@@ -203,21 +224,27 @@ module tlp_demux #(
                     if (w_out_ready | r_out_ready) begin
                         if (w_out_ready & r_out_ready) begin
                             status_nxt = ALL_0;
+                            shut_r     = 1;
+                            shut_w     = 1;
                         end
                         else if (w_out_ready) begin
                             status_nxt = TMP_W_0;
+                            shut_w     = 1;
                         end
                         else begin
                             status_nxt = TMP_R_0;
+                            shut_r     = 1;
                         end
                     end
                 end
             end
             status[W_R_0_BIT]: begin
                 in_ready_nxt = 1'b1;
+                // shut_r    = tmp_wr_rd ? 1 : 0;
+                // shut_w    = tmp_wr_rd ? 0 : 1;
                 tmp_to_r     = !tmp_wr_rd;
                 tmp_to_w     = tmp_wr_rd;
-                if (in_valid_wire) begin
+                if (in_valid_wire & in_ready) begin
                     in_to_tmp  = 1'b1;
                     status_nxt = tmp_wr_rd ? R_0 : W_0;
                 end
@@ -227,21 +254,27 @@ module tlp_demux #(
             end
             status[W_0_BIT]: begin
                 in_ready_nxt = 1'b0;
+                // shut_w    = 1;
                 if (r_out_ready) begin
-                    tmp_to_r = !tmp_wr_rd;
+                    // shut_r = 1;
+                    tmp_to_r  = !tmp_wr_rd;
                 end
                 else begin
-                    tmp_to_w = tmp_wr_rd;
+                    tmp_to_w  = tmp_wr_rd;
+                    // shut_w = 0;
                 end
                 status_nxt = tmp_wr_rd ? (r_out_ready ? TMP_R_0 : TMP_0) : (r_out_ready ? TMP_W_0 : W_0);
             end
             status[R_0_BIT]: begin
                 in_ready_nxt = 1'b0;
+                // shut_r    = 1;
                 if (w_out_ready) begin
-                    tmp_to_w = tmp_wr_rd;
+                    tmp_to_w  = tmp_wr_rd;
+                    // shut_w = 1;
                 end
                 else begin
-                    tmp_to_r = !tmp_wr_rd;
+                    tmp_to_r  = !tmp_wr_rd;
+                    // shut_r = 0;
                 end
                 status_nxt = tmp_wr_rd ? (w_out_ready ? TMP_R_0 : R_0) : (w_out_ready ? TMP_W_0 : TMP_0);
             end
@@ -250,12 +283,16 @@ module tlp_demux #(
                 if (r_out_ready | w_out_ready) begin
                     if (r_out_ready & w_out_ready) begin
                         status_nxt = W_R_0;
+                        shut_r     = 1;
+                        shut_w     = 1;
                     end
                     else if (w_out_ready) begin
                         status_nxt = W_0;
+                        shut_w     = 1;
                     end
                     else begin
                         status_nxt = R_0;
+                        shut_r     = 1;
                     end
                 end
             end
@@ -265,11 +302,11 @@ module tlp_demux #(
     always @(posedge clk) begin
         if (!rst_n) begin
             status   <= 8'b1;
-            in_ready <= 1'b0;
+            // in_ready <= 1'b0;
         end
         else begin
             status   <= status_nxt;
-            in_ready <= in_ready_nxt;
+            // in_ready <= in_ready_nxt;
         end
     end
     /*
@@ -333,45 +370,53 @@ module tlp_demux #(
             w_out_eop_nxt   = tmp_eop;
             w_out_valid_nxt = tmp_valid;
         end
+        //
+        // if (shut_w) begin
+        //     w_out_valid_nxt = 0;
+        // end
+        // //
+        // if (shut_r) begin
+        //     r_out_valid_nxt = 0;
+        // end
     end
     always @(posedge clk) begin
         if (!rst_n) begin
-            tmp_data  = 0;
-            tmp_hdr   = 0;
-            tmp_sop   = 0;
-            tmp_eop   = 0;
-            tmp_valid = 0;
+            tmp_data  <= 0;
+            tmp_hdr   <= 0;
+            tmp_sop   <= 0;
+            tmp_eop   <= 0;
+            tmp_valid <= 0;
             
-            r_out_data  = 0;
-            r_out_hdr   = 0;
-            r_out_sop   = 0;
-            r_out_eop   = 0;
-            r_out_valid = 0;
+            r_out_data  <= 0;
+            r_out_hdr   <= 0;
+            r_out_sop   <= 0;
+            r_out_eop   <= 0;
+            r_out_valid <= 0;
             
-            w_out_data  = 0;
-            w_out_hdr   = 0;
-            w_out_sop   = 0;
-            w_out_eop   = 0;
-            w_out_valid = 0;
+            w_out_data  <= 0;
+            w_out_hdr   <= 0;
+            w_out_sop   <= 0;
+            w_out_eop   <= 0;
+            w_out_valid <= 0;
         end
         else begin
-            tmp_data  = tmp_data_nxt;
-            tmp_hdr   = tmp_hdr_nxt;
-            tmp_sop   = tmp_sop_nxt;
-            tmp_eop   = tmp_eop_nxt;
-            tmp_valid = tmp_valid_nxt;
+            tmp_data  <= tmp_data_nxt;
+            tmp_hdr   <= tmp_hdr_nxt;
+            tmp_sop   <= tmp_sop_nxt;
+            tmp_eop   <= tmp_eop_nxt;
+            tmp_valid <= tmp_valid_nxt;
             
-            r_out_data  = r_out_data_nxt;
-            r_out_hdr   = r_out_hdr_nxt;
-            r_out_sop   = r_out_sop_nxt;
-            r_out_eop   = r_out_eop_nxt;
-            r_out_valid = r_out_valid_nxt;
+            r_out_data  <= r_out_data_nxt;
+            r_out_hdr   <= r_out_hdr_nxt;
+            r_out_sop   <= r_out_sop_nxt;
+            r_out_eop   <= r_out_eop_nxt;
+            r_out_valid <= r_out_valid_nxt & !shut_r;
             
-            w_out_data  = w_out_data_nxt;
-            w_out_hdr   = w_out_hdr_nxt;
-            w_out_sop   = w_out_sop_nxt;
-            w_out_eop   = w_out_eop_nxt;
-            w_out_valid = w_out_valid_nxt;
+            w_out_data  <= w_out_data_nxt;
+            w_out_hdr   <= w_out_hdr_nxt;
+            w_out_sop   <= w_out_sop_nxt;
+            w_out_eop   <= w_out_eop_nxt;
+            w_out_valid <= w_out_valid_nxt & !shut_w;
         end
     end
     
