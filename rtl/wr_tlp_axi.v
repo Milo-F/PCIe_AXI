@@ -87,51 +87,100 @@ module wr_tlp_axi #(
     assign hdr_tag      = {tlp_hdr[119], tlp_hdr[116], tlp_hdr[79:72]};
     assign hdr_last_be  = tlp_hdr[71:68];
     assign hdr_first_be = tlp_hdr[67:64];
-    assign hdr_addr     = hdr_fmt[0] ? {tlp_hdr[63:2], 2'b0} : {tlp_hdr[63:34],34'b0}; // 分为4DW和3DW对应于64位地址和32位地址
+    assign hdr_addr     = hdr_fmt[0] ? {tlp_hdr[63:2], 2'b0} : {32'b0,tlp_hdr[31:2],2'b0}; // 分为4DW和3DW对应于64位地址和32位地址
     assign hdr_ph       = hdr_fmt[0] ? tlp_hdr[1:0] : tlp_hdr[33:32];
     
     // 内部fifo控制信号
-    wire                                                    fifo_full;
+    wire                                                    is_full;
     reg                                                     w_en;
     wire                                                    fifo_empty;
     reg                                                     r_en;
     wire                                                    effc_tlp_valid;    // 有效tlp使能
-    // assign effc_tlp_valid = tlp_valid & !hdr_ep;
-    // assign w_en           = tlp_ready & effc_tlp_valid;
-    // // tlp_ready 产生
-    // always @* begin
-    //     tlp_ready_nxt = (!fifo_full & !tlp_ready)|tlp_ready;
-    // end
-    // always @(posedge clk) begin
-    //     if (!rst_n) begin
-    //         tlp_ready <= 0;
-    //     end
-    //     else begin
-    //         tlp_ready <= tlp_ready_nxt;
-    //     end
-    // end
-    reg                                                     start_tx,start_tx_nxt;
+    
+    reg                                                     start_tx,start_tx_tmp,start_tx_nxt;
     /*
      * 接收状态机配置
      */
-    localparam RX_BUSY  = 1'b1;
-    localparam RX_WAITE = 1'b0;
-    reg                                                     rx_status,rx_status_nxt;
-    always @* begin
-        rx_status_nxt = rx_status;
-        tlp_ready_nxt = tlp_ready;
+    localparam RX_BUSY            = 2'b0;
+    localparam RX_WAITE           = 2'b01;
+    localparam RX_STORE_LAST      = 2'b10;
+    localparam AXI_BURST_ADDR_INC = $clog2(AXI_DATA_WIDTH / DOUBLE_WORD); // 256/32 = 8 log8 = 3
+    reg                     [1:0]                           rx_status,rx_status_nxt;
+    reg                     [AXI_BURST_ADDR_INC-1:0]        addr_offset,addr_offset_nxt;    // 非对齐地址的偏移
+    reg                     [AXI_DATA_WIDTH-1:0]            data_to_fifo;
+    reg                     [TLP_DATA_WIDTH-1:0]            tlp_data_in,tlp_data_in_nxt;
+    reg                     [HEADER_SIZE-1:0]               tlp_hdr_in,tlp_hdr_in_nxt;
+    always @* begin // 解析tlp header，产生必要的AXI控制信号，将TLP数据对齐存入FIFO
+        rx_status_nxt   = rx_status;
+        tlp_ready_nxt   = tlp_ready;
+        tlp_data_in_nxt = tlp_data_in;
+        tlp_hdr_in_nxt  = tlp_hdr_in;
+        start_tx_nxt    = start_tx_tmp;
+        addr_offset_nxt = addr_offset;
+        //
+        w_en = tlp_valid & tlp_ready;
         case (rx_status)
-            RX_BUSY: begin
-                if (!fifo_full) begin
-                    
+            RX_BUSY: begin // 接收TLP包
+                tlp_ready_nxt   = (~is_full) & (~tlp_ready);
+                addr_offset_nxt = hdr_addr[AXI_BURST_ADDR_INC+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
+                if (!is_full) begin // 如果FIFO没满,表示可以接收数据
+                    if (tlp_ready & tlp_valid) begin // 输入数据有效
+                        if (tlp_sop) begin // 如果输入的是第一个数据，则进行AXI总线配置
+                            // 保存该帧的hdr信息
+                            tlp_hdr_in_nxt = tlp_hdr;
+                            start_tx_nxt   = 1'b1;   // AXI开始发送
+                        end
+                        // 最后一个TLP包，如果是非对齐地址数据，还需要额外存一次数据进fifo
+                        if (tlp_eop) begin
+                            tlp_ready_nxt = 0;
+                            rx_status_nxt = (addr_offset == 0) ? RX_WAITE : RX_STORE_LAST; // 若地址对齐直接等待AXI结束，若非对齐则需要额外将最后一半数据存到fifo中
+                        end
+                        tlp_data_in_nxt = tlp_data;
+                        data_to_fifo    = {tlp_data,tlp_data_in}>>((AXI_BURST_ADDR_INC - addr_offset_nxt)<<5);
+                    end
+                end
+            end
+            RX_STORE_LAST: begin
+                if (!is_full) begin // 将最后一半数据存进fif o
+                    w_en          = 1;
+                    data_to_fifo  = {tlp_data_in,TLP_DATA_WIDTH{1'b0}}>>((AXI_BURST_ADDR_INC - addr_offset_nxt)<<5);
+                    rx_status_nxt = RX_WAITE;
                 end
             end
             RX_WAITE: begin // 等待AXI发送结束
-                
+                tlp_ready_nxt = 0;
+                w_en          = 0;
+                if (start_tx) begin
+                    rx_status_nxt = RX_WAITE;
+                end
+                else begin
+                    rx_status_nxt = RX_BUSY;
+                end
             end
             default:;
         endcase
     end
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            rx_status    <= RX_WAITE;
+            start_tx_tmp <= 0;
+            start_tx     <= 0;
+            tlp_ready    <= 0;
+            tlp_data_in  <= 0;
+            tlp_hdr_in   <= 0;
+            addr_offset  <= 0;
+        end
+        else begin
+            rx_status    <= rx_status_nxt;
+            tlp_ready    <= tlp_ready_nxt;
+            tlp_data_in  <= tlp_data_in_nxt;
+            tlp_hdr_in   <= tlp_hdr_in_nxt;
+            start_tx_tmp <= start_tx_nxt;
+            start_tx     <= start_tx_tmp;
+            addr_offset  <= addr_offset_nxt;
+        end
+    end
+    
     /*
      * 发送状态机配置
      */
@@ -151,17 +200,11 @@ module wr_tlp_axi #(
     localparam END_TR      = 2'b2;
     reg                     [1:0]                           tr_status,tr_status_nxt;
     // 状态转移，控制数据从fifo到axi的发送状态
-    always @* begin
+    always @* begin // 从FIFO中取出数据发送AXI
         status_nxt    = status;
         tr_status_nxt = tr_status;
-        // tlp
-        tlp_ready_nxt = tlp_ready;
         case (1'b1)
-            status[IDLE_IDX]: begin // 总线空闲，数据有效
-                tlp_ready_nxt = 1'b1; // 空闲状态ready保持有效
-                if (effc_tlp_valid & tlp_sop) begin // 如果数据有效
-                    
-                end
+            status[IDLE_IDX]: begin
             end
             status[TRANSFER_IDX]: begin
                 case (tr_status)
@@ -183,5 +226,24 @@ module wr_tlp_axi #(
             default:;
         endcase
     end
+    
+    localparam FIFO_DEPTH      = 16;
+    localparam FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
+    syn_fifo #(
+        .DATA_WIDTH(TLP_DATA_WIDTH),
+        .FIFO_DEPTH(FIFO_DEPTH),
+        .ADDR_WIDTH(FIFO_ADDR_WIDTH)
+    ) data_fifo (
+        .clk(clk),
+        .rst_n(rst_n),
+        .w_en(w_en),
+        .w_data(data_to_fifo),
+        .r_en(r_en),
+        .r_data(data_to_axi),
+        .is_empty(is_empty),
+        .is_full(is_full),
+        .room_avail(),
+        .data_avail()
+    );
     
 endmodule
