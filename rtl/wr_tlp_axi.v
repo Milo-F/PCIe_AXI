@@ -197,7 +197,7 @@ module wr_tlp_axi #(
     // 发送子状态机定义
     localparam START_TR    = 2'b0;
     localparam CONTINUE_TR = 2'b1;
-    // localparam IDLE_TR     = 2'b2;
+    // localparam IDLE_TR  = 2'b2;
     reg                     [1:0]                           tr_status,tr_status_nxt;
     wire                    [AXI_DATA_WIDTH-1:0]            data_to_axi;
     localparam AXI_TR_MAX_TIMES = 1024/AXI_DATA_WIDTH*DOUBLE_WORD; // 最多需要的AXI传输次数
@@ -242,8 +242,8 @@ module wr_tlp_axi #(
         
         case (1'b1)
             status[IDLE_IDX]: begin // 空闲等待状态 配置axi_awlen,axi_awaddr
-                axi_awaddr_nxt       = hdr_lock_addr;
-                axi_tr_cnt_nxt       = (hdr_lock_length >> AXI_DW_WIDTH_LOG)+1'b1;
+                axi_awaddr_nxt  = hdr_lock_addr;
+                axi_tr_cnt_nxt  = (hdr_lock_length >> AXI_DW_WIDTH_LOG)+1'b1;
                 offset_lock_nxt = hdr_lock_addr[AXI_BURST_ADDR_INC+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
                 // 配置awlen，如果需要的发送次数超过了256，则需要多次burst传输，
                 if (axi_tr_cnt_nxt <= 256) begin
@@ -314,7 +314,7 @@ module wr_tlp_axi #(
                                     axi_awvalid_nxt = 1'b1;
                                     if (axi_awvalid & axi_awready) begin
                                         axi_awvalid_nxt = 1'b0;
-                                        burst_cnt_nxt   = (axi_tr_cnt <= 256) ? axi_tr_cnt : 9'h100; // 重新计数
+                                        burst_cnt_nxt   = (axi_tr_cnt <   = 256) ? axi_tr_cnt : 9'h100; // 重新计数
                                     end
                                 end
                             end
@@ -347,6 +347,52 @@ module wr_tlp_axi #(
             end
             default:;
         endcase
+    end
+    
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            status      <= WAITE_END;
+            tr_status   <= 0;
+            axi_tr_cnt  <= 0;
+            burst_cnt   <= 0;
+            offset_lock <= 0;
+            r_en        <= 0;
+            // axi
+            axi_awid    <= 0;
+            axi_awaddr  <= 0;
+            axi_awlen   <= 0;
+            axi_awsize  <= 0;
+            axi_awburst <= 0;
+            axi_awlock  <= 0;
+            axi_awprot  <= 0;
+            axi_awcache <= 0;
+            axi_awvalid <= 0;
+            axi_wdata   <= 0;
+            axi_wstrb   <= 0;
+            axi_wlast   <= 0;
+            axi_wvalid  <= 0;
+        end
+        else begin
+            status        <= status_nxt;
+            tr_status     <= tr_status_nxt;
+            axi_tr_cnt    <= axi_tr_cnt_nxt;
+            burst_cnt_nxt <= burst_cnt_nxt;
+            offset_lock   <= offset_lock_nxt;
+            r_en          <= r_en_nxt;
+            axi_awid      <= axi_awid_nxt;
+            axi_awaddr    <= axi_awaddr_nxt;
+            axi_awlen     <= axi_awlen_nxt;
+            axi_awsize    <= axi_awsize_nxt;
+            axi_awburst   <= axi_awburst_nxt;
+            axi_awlock    <= axi_awlock_nxt;
+            axi_awcache   <= axi_awcache_nxt;
+            axi_awprot    <= axi_awprot_nxt;
+            axi_awvalid   <= axi_awvalid_nxt;
+            axi_wdata     <= axi_wdata_nxt;
+            axi_wstrb     <= axi_wstrb_nxt;
+            axi_wlast     <= axi_wlast_nxt;
+            axi_wvalid    <= axi_wvalid_nxt;
+        end
     end
     
     localparam FIFO_DEPTH      = 16;
