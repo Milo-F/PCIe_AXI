@@ -26,7 +26,7 @@ module wr_tlp_axi #(
     output      reg         [2:0]                           axi_awprot,  // 1/0 特权/非特权，不安全/安全，指令/数据访问
     output      reg                                         axi_awvalid,
     input       wire                                        axi_awready,
-    output      reg         [AXI_DATA_WIDTH-1:0]            axi_wdata,   // AXI写入数据总线宽度256
+    output                  [AXI_DATA_WIDTH-1:0]            axi_wdata,   // AXI写入数据总线宽度256
     output      reg                                         axi_wvalid,  //
     output      reg         [AXI_STRB_WIDTH-1:0]            axi_wstrb,   // AXI数据有效阀门，其第n位为1代表data[n*8+7:n*8]数据有效
     output      reg                                         axi_wlast,   // 最后一次transfer
@@ -35,7 +35,7 @@ module wr_tlp_axi #(
     input       wire        [1:0]                           axi_bresp,   // 回应，分为OK，EXOK，SLAVER和DECERR，OKAY是正常成功传输响应，EXOKAY是独占访问下的传输成功响应，SLAVER是传输失败响应，DECODERR是译码错误响应
     input       wire                                        axi_bvalid,
     output      reg                                         axi_bready,
-    output      reg                                         tlp_error
+    output                                                  tlp_error
 );
     // AXI AW
     reg                     [AXI_ID_WIDTH-1:0]              axi_awid_nxt;
@@ -48,7 +48,7 @@ module wr_tlp_axi #(
     reg                                                     axi_awlock_nxt;
     reg                                                     axi_awvalid_nxt;
     // AXI W
-    reg                     [AXI_DATA_WIDTH-1:0]            axi_wdata_nxt;
+    // reg                     [AXI_DATA_WIDTH-1:0]            axi_wdata_nxt;
     reg                     [AXI_STRB_WIDTH-1:0]            axi_wstrb_nxt;
     reg                                                     axi_wlast_nxt;
     reg                                                     axi_wvalid_nxt;
@@ -96,6 +96,8 @@ module wr_tlp_axi #(
     wire                                                    is_empty;
     reg                                                     r_en,r_en_nxt;
     wire                                                    effc_tlp_valid;    // 有效tlp使能
+    assign effc_tlp_valid = tlp_valid & !hdr_ep;
+    assign tlp_error      = hdr_ep;
     
     reg                                                     start_tx,start_tx_tmp,start_tx_nxt;
     /*
@@ -104,9 +106,10 @@ module wr_tlp_axi #(
     localparam RX_BUSY            = 2'b0;
     localparam RX_WAITE           = 2'b01;
     localparam RX_STORE_LAST      = 2'b10;
-    localparam AXI_BURST_ADDR_INC = $clog2(AXI_DATA_WIDTH / DOUBLE_WORD); // 256/32 = 8 log8 = 3
+    localparam AXI_BURST_ADDR_INC = AXI_DATA_WIDTH / DOUBLE_WORD; // 256/32 = 8 log8 = 3
+    localparam AXI_ADDR_INC_LOG   = $clog2(AXI_BURST_ADDR_INC);
     reg                     [1:0]                           rx_status,rx_status_nxt;
-    reg                     [AXI_BURST_ADDR_INC-1:0]        addr_offset,addr_offset_nxt;    // 非对齐地址的偏移
+    reg                     [AXI_ADDR_INC_LOG-1:0]          addr_offset,addr_offset_nxt;    // 非对齐地址的偏移
     reg                     [AXI_DATA_WIDTH-1:0]            data_to_fifo;
     reg                     [TLP_DATA_WIDTH-1:0]            tlp_data_in,tlp_data_in_nxt;
     reg                     [HEADER_SIZE-1:0]               tlp_hdr_in,tlp_hdr_in_nxt;
@@ -118,13 +121,16 @@ module wr_tlp_axi #(
         start_tx_nxt    = start_tx_tmp;
         addr_offset_nxt = addr_offset;
         //
-        w_en = tlp_valid & tlp_ready;
+        w_en = effc_tlp_valid & tlp_ready;
         case (rx_status)
             RX_BUSY: begin // 接收TLP包
-                tlp_ready_nxt   = (~is_full) & (~tlp_ready);
-                addr_offset_nxt = hdr_addr[AXI_BURST_ADDR_INC+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
+                if (~(is_full|tlp_ready)) begin
+                    tlp_ready_nxt = 1'b1;
+                end
+                addr_offset_nxt = hdr_addr[AXI_ADDR_INC_LOG+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
                 if (!is_full) begin // 如果FIFO没满,表示可以接收数据
-                    if (tlp_ready & tlp_valid) begin // 输入数据有效
+                    if (tlp_ready & effc_tlp_valid) begin // 输入数据有效
+                        tlp_ready_nxt = 0;
                         if (tlp_sop) begin // 如果输入的是第一个数据，则进行AXI总线配置
                             // 保存该帧的hdr信息
                             tlp_hdr_in_nxt = tlp_hdr;
@@ -132,7 +138,6 @@ module wr_tlp_axi #(
                         end
                         // 最后一个TLP包，如果是非对齐地址数据，还需要额外存一次数据进fifo
                         if (tlp_eop) begin
-                            tlp_ready_nxt = 0;
                             rx_status_nxt = (addr_offset == 0) ? RX_WAITE : RX_STORE_LAST; // 若地址对齐直接等待AXI结束，若非对齐则需要额外将最后一半数据存到fifo中
                         end
                         tlp_data_in_nxt = tlp_data;
@@ -212,7 +217,7 @@ module wr_tlp_axi #(
     assign axi_tr_cnt_minus1 = axi_tr_cnt - 1'b1;
     wire                    [AXI_ADDR_WIDTH-1:0]            hdr_lock_addr;
     wire                    [10:0]                          hdr_lock_length;
-    reg                     [AXI_BURST_ADDR_INC - 1:0]      offset_lock,offset_lock_nxt;
+    reg                     [AXI_ADDR_INC_LOG - 1:0]        offset_lock,offset_lock_nxt;
     assign hdr_lock_length = {tlp_hdr_in[105:96] == 10'b0, tlp_hdr_in[105:96]};
     assign hdr_lock_addr   = tlp_hdr_in[125] ? {tlp_hdr_in[63:2], 2'b0} : {32'b0,tlp_hdr_in[31:2],2'b0}; // 分为4DW和3DW对应于64位地址和32位地址
     // 状态转移，控制数据从fifo到axi的发送状态
@@ -235,19 +240,19 @@ module wr_tlp_axi #(
         axi_awvalid_nxt = axi_awvalid;
         
         // axi w
-        axi_wdata_nxt  = axi_wdata;
-        axi_wstrb_nxt  = axi_wstrb;
-        axi_wlast_nxt  = axi_wlast;
-        axi_wvalid_nxt = axi_wvalid;
+        // axi_wdata_nxt = axi_wdata;
+        axi_wstrb_nxt    = axi_wstrb;
+        axi_wlast_nxt    = axi_wlast;
+        axi_wvalid_nxt   = axi_wvalid;
         
         case (1'b1)
             status[IDLE_IDX]: begin // 空闲等待状态 配置axi_awlen,axi_awaddr
                 axi_awaddr_nxt  = hdr_lock_addr;
-                axi_tr_cnt_nxt  = (hdr_lock_length >> AXI_DW_WIDTH_LOG)+1'b1;
-                offset_lock_nxt = hdr_lock_addr[AXI_BURST_ADDR_INC+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
+                axi_tr_cnt_nxt  = (hdr_lock_length >> AXI_DW_WIDTH_LOG);
+                offset_lock_nxt = hdr_lock_addr[AXI_ADDR_INC_LOG+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
                 // 配置awlen，如果需要的发送次数超过了256，则需要多次burst传输，
                 if (axi_tr_cnt_nxt <= 256) begin
-                    axi_awlen_nxt = (hdr_lock_length >> AXI_DW_WIDTH_LOG); // 需要几次传几次
+                    axi_awlen_nxt = (hdr_lock_length >> AXI_DW_WIDTH_LOG)-1'b1; // 需要几次传几次
                     burst_cnt_nxt = axi_tr_cnt_nxt;
                 end
                 else begin
@@ -266,81 +271,98 @@ module wr_tlp_axi #(
                     axi_awvalid_nxt = 1'b0;
                 end
                 //
-                if (!is_empty) begin // 只有当fif o非空，才可以读取数据进行发送
-                    case (tr_status)
-                        START_TR: begin
-                            r_en_nxt = 1'b1;
-                            if (r_en) begin // 读取数据
-                                r_en_nxt       = 0;
-                                axi_wdata_nxt  = data_to_axi;
-                                axi_wstrb_nxt  = {{AXI_STRB_WIDTH{1'b1}},{(offset_lock<<2){1'b0}}}; // 第一个数据的数据阀门
-                                axi_wvalid_nxt = 1'b1;
-                                axi_wlast_nxt  = (burst_cnt == 1);
+                case (tr_status)
+                    START_TR: begin
+                        if (!is_empty) begin
+                            if (!(axi_wvalid&axi_wready)) begin
+                                r_en_nxt = 1'b1;
                             end
-                            
-                            if (burst_cnt == 1) begin // 如果一次发送就结束了
-                                if (axi_wready & axi_wvalid) begin // 数据被接收后
-                                    // tr_status_nxt = IDLE_TR; // 发送完毕，转为空闲
-                                    start_tx_nxt     = 0; // 停止发送
-                                    status_nxt       = WAITE_END; // 转为等待
-                                    axi_wvalid_nxt   = 1'b0; // 清除标志位
-                                    axi_wlast        = 0;
+                        end
+                        else begin
+                            r_en_nxt = 0;
+                        end
+                        if (r_en) begin // 读取数据
+                            r_en_nxt         = 0;
+                            // axi_wdata_nxt = data_to_axi;
+                            axi_wstrb_nxt    = {AXI_STRB_WIDTH{1'b1}}<<(offset_lock<<2); // 第一个数据的数据阀门
+                            axi_wvalid_nxt   = 1'b1;
+                            // axi_wlast_nxt = (burst_cnt == 1);
+                        end
+                        
+                        if (burst_cnt == 1) begin // 如果一次发送就结束了
+                            axi_wlast_nxt = 1'b1;
+                            if (axi_wready & axi_wvalid) begin // 数据被接收后
+                                // tr_status_nxt = IDLE_TR; // 发送完毕，转为空闲
+                                start_tx_nxt     = 0; // 停止发送
+                                status_nxt       = WAITE_END; // 转为等待
+                                axi_wvalid_nxt   = 1'b0; // 清除标志位
+                                axi_wlast_nxt    = 0;
+                            end
+                        end
+                        else begin
+                            if (axi_wready & axi_wvalid) begin
+                                tr_status_nxt  = CONTINUE_TR; // 继续发送
+                                axi_wvalid_nxt = 1'b0; // 清除标志位
+                                burst_cnt_nxt  = burst_cnt_minus1;// 发送计数器-1
+                                axi_tr_cnt_nxt = axi_tr_cnt_minus1; // 总计数器-1
+                            end
+                        end
+                    end
+                    CONTINUE_TR: begin
+                        if (burst_cnt == 0) begin // 该次burst发送完了
+                            if (axi_tr_cnt == 0) begin
+                                start_tx_nxt = 0;
+                                status_nxt   = WAITE_END;
+                            end
+                            else begin // 一次burst不足以发送整个TLP数据,继续发，修改地址，重发aw控制信号
+                                axi_awaddr_nxt = axi_awaddr + AXI_DATA_WIDTH/8; // 更新下一次burst地址
+                                // 更新下一次burst len
+                                if (axi_tr_cnt <= 256) begin
+                                    axi_awlen_nxt = axi_tr_cnt-1'b1; // 需要几次传几次
+                                end
+                                else begin
+                                    axi_awlen_nxt = 8'hff; // 256次传满
+                                end
+                                axi_awvalid_nxt = 1'b1;
+                                if (axi_awvalid & axi_awready) begin
+                                    axi_awvalid_nxt = 1'b0;
+                                    burst_cnt_nxt   = (axi_tr_cnt <= 256) ? axi_tr_cnt : 9'h100; // 重新计数
+                                end
+                            end
+                        end
+                        else begin // 还没有发完
+                            if (!is_empty) begin
+                                if (!(axi_wvalid&axi_wready)) begin
+                                    r_en_nxt = 1'b1;
                                 end
                             end
                             else begin
-                                if (axi_wready & axi_wvalid) begin
-                                    tr_status_nxt  = CONTINUE_TR; // 继续发送
-                                    axi_wvalid_nxt = 1'b0; // 清除标志位
-                                    burst_cnt_nxt  = burst_cnt_minus1;// 发送计数器-1
-                                    axi_tr_cnt_nxt = axi_tr_cnt_minus1; // 总计数器-1
+                                r_en_nxt = 0;
+                            end
+                            if (r_en) begin
+                                r_en_nxt         = 0;
+                                // axi_wdata_nxt = data_to_axi;
+                                axi_wstrb_nxt    = (axi_tr_cnt == 1)?{AXI_STRB_WIDTH{1'b1}}>>(offset_lock<<2):{AXI_STRB_WIDTH{1'b1}};
+                                // axi_wlast_nxt = (burst_cnt == 1);
+                                axi_wvalid_nxt   = 1'b1;
+                            end
+                            if (axi_wready & axi_wvalid) begin
+                                tr_status_nxt  = CONTINUE_TR;
+                                axi_wvalid_nxt = 0;
+                                axi_wlast_nxt  = 0;
+                                if (burst_cnt_nxt == 2) begin
+                                    axi_wlast_nxt = 1;
                                 end
+                                burst_cnt_nxt  = burst_cnt_minus1;// 发送计数器-1
+                                axi_tr_cnt_nxt = axi_tr_cnt_minus1; // 总计数器-1
                             end
                         end
-                        CONTINUE_TR: begin
-                            if (burst_cnt == 0) begin // 该次burst发送完了
-                                if (axi_tr_cnt == 0) begin
-                                    start_tx_nxt = 0;
-                                    status_nxt   = WAITE_END;
-                                end
-                                else begin // 一次burst不足以发送整个TLP数据,继续发，修改地址，重发aw控制信号
-                                    axi_awaddr_nxt = axi_awaddr + AXI_DATA_WIDTH/8; // 更新下一次burst地址
-                                    // 更新下一次burst len
-                                    if (axi_tr_cnt <= 256) begin
-                                        axi_awlen_nxt = axi_tr_cnt-1'b1; // 需要几次传几次
-                                    end
-                                    else begin
-                                        axi_awlen_nxt = 8'hff; // 256次传满
-                                    end
-                                    axi_awvalid_nxt = 1'b1;
-                                    if (axi_awvalid & axi_awready) begin
-                                        axi_awvalid_nxt = 1'b0;
-                                        burst_cnt_nxt   = (axi_tr_cnt <   = 256) ? axi_tr_cnt : 9'h100; // 重新计数
-                                    end
-                                end
-                            end
-                            else begin // 还没有发完
-                                r_en_nxt = 1'b1;
-                                if (r_en) begin
-                                    r_en_nxt       = 0;
-                                    axi_wdata_nxt  = data_to_axi;
-                                    axi_wstrb_nxt  = (axi_tr_cnt == 1)?{AXI_STRB_WIDTH{1'b1}}>>(offset_lock<<2):{AXI_STRB_WIDTH{1'b1}};
-                                    axi_wlast_nxt  = (burst_cnt == 1);
-                                    axi_wvalid_nxt = 1'b1;
-                                end
-                                if (axi_wready & axi_wvalid) begin
-                                    tr_status_nxt  = CONTINUE_TR;
-                                    axi_wvalid_nxt = 0;
-                                    burst_cnt_nxt  = burst_cnt_minus1;// 发送计数器-1
-                                    axi_tr_cnt_nxt = axi_tr_cnt_minus1; // 总计数器-1
-                                end
-                            end
-                        end
-                        // IDLE_TR: begin
-                            //     axi_wlast_nxt = 1'b1;
-                        // end
-                        default: status_nxt = WAITE_END;
-                    endcase
-                end
+                    end
+                    // IDLE_TR: begin
+                        //     axi_wlast_nxt = 1'b1;
+                    // end
+                    default: status_nxt = WAITE_END;
+                endcase
             end
             status[WAITE_END_IDX]: begin
                 status_nxt = IDLE; // 缓冲一拍，让start_tx传到
@@ -348,7 +370,7 @@ module wr_tlp_axi #(
             default:;
         endcase
     end
-    
+    assign axi_wdata = data_to_axi;
     always @(posedge clk) begin
         if (!rst_n) begin
             status      <= WAITE_END;
@@ -358,40 +380,42 @@ module wr_tlp_axi #(
             offset_lock <= 0;
             r_en        <= 0;
             // axi
-            axi_awid    <= 0;
-            axi_awaddr  <= 0;
-            axi_awlen   <= 0;
-            axi_awsize  <= 0;
-            axi_awburst <= 0;
-            axi_awlock  <= 0;
-            axi_awprot  <= 0;
-            axi_awcache <= 0;
-            axi_awvalid <= 0;
-            axi_wdata   <= 0;
-            axi_wstrb   <= 0;
-            axi_wlast   <= 0;
-            axi_wvalid  <= 0;
+            axi_awid     <= 0;
+            axi_awaddr   <= 0;
+            axi_awlen    <= 0;
+            axi_awsize   <= 0;
+            axi_awburst  <= 0;
+            axi_awlock   <= 0;
+            axi_awprot   <= 0;
+            axi_awcache  <= 0;
+            axi_awvalid  <= 0;
+            // axi_wdata <= 0;
+            axi_wstrb    <= 0;
+            axi_wlast    <= 0;
+            axi_wvalid   <= 0;
+            axi_bready   <= 0;
         end
         else begin
-            status        <= status_nxt;
-            tr_status     <= tr_status_nxt;
-            axi_tr_cnt    <= axi_tr_cnt_nxt;
-            burst_cnt_nxt <= burst_cnt_nxt;
-            offset_lock   <= offset_lock_nxt;
-            r_en          <= r_en_nxt;
-            axi_awid      <= axi_awid_nxt;
-            axi_awaddr    <= axi_awaddr_nxt;
-            axi_awlen     <= axi_awlen_nxt;
-            axi_awsize    <= axi_awsize_nxt;
-            axi_awburst   <= axi_awburst_nxt;
-            axi_awlock    <= axi_awlock_nxt;
-            axi_awcache   <= axi_awcache_nxt;
-            axi_awprot    <= axi_awprot_nxt;
-            axi_awvalid   <= axi_awvalid_nxt;
-            axi_wdata     <= axi_wdata_nxt;
-            axi_wstrb     <= axi_wstrb_nxt;
-            axi_wlast     <= axi_wlast_nxt;
-            axi_wvalid    <= axi_wvalid_nxt;
+            status       <= status_nxt;
+            tr_status    <= tr_status_nxt;
+            axi_tr_cnt   <= axi_tr_cnt_nxt;
+            burst_cnt    <= burst_cnt_nxt;
+            offset_lock  <= offset_lock_nxt;
+            r_en         <= r_en_nxt;
+            axi_awid     <= axi_awid_nxt;
+            axi_awaddr   <= axi_awaddr_nxt;
+            axi_awlen    <= axi_awlen_nxt;
+            axi_awsize   <= axi_awsize_nxt;
+            axi_awburst  <= axi_awburst_nxt;
+            axi_awlock   <= axi_awlock_nxt;
+            axi_awcache  <= axi_awcache_nxt;
+            axi_awprot   <= axi_awprot_nxt;
+            axi_awvalid  <= axi_awvalid_nxt;
+            // axi_wdata <= axi_wdata_nxt;
+            axi_wstrb    <= axi_wstrb_nxt;
+            axi_wlast    <= axi_wlast_nxt;
+            axi_wvalid   <= axi_wvalid_nxt;
+            axi_bready   <= 1'b1;
         end
     end
     

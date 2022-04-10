@@ -16,7 +16,7 @@ module tlp_demux #(
     input       wire                                        in_sop,
     input       wire                                        in_eop,
     input       wire                                        in_valid,
-    output                                                  in_ready,
+    output      reg                                         in_ready,
     output      reg         [TLP_DATA_WIDTH-1:0]            r_out_data,  // 输出读请求TLP包
     output      reg         [HEADER_SIZE-1:0]               r_out_hdr,
     output      reg                                         r_out_sop,
@@ -32,7 +32,7 @@ module tlp_demux #(
     input       wire                                        enable
 );
     reg                                                     in_ready_nxt;
-    assign in_ready = in_ready_nxt;
+    // assign in_ready = in_ready_nxt;
     /*
      * 输出读请求TLP
      */
@@ -91,35 +91,17 @@ module tlp_demux #(
     /*
      * 数据流状态机控制
      */
-    // 状态定义
-    localparam ALL_0   = 8'b0000_0001; // tmp:0; w_out:0; r_out:0
-    localparam TMP_W_0 = 8'b0000_0010; //     0        0        1
-    localparam TMP_R_0 = 8'b0000_0100; //     0        1        0
-    localparam TMP_0   = 8'b0000_1000; //     0        1        1
-    localparam W_R_0   = 8'b0001_0000; //     1        0        0
-    localparam W_0     = 8'b0010_0000; //     1        0        1
-    localparam R_0     = 8'b0100_0000; //     1        1        0
-    localparam ALL_1   = 8'b1000_0000; //     1        1        1
-    
-    localparam ALL_0_BIT   = 0;
-    localparam TMP_W_0_BIT = 1;
-    localparam TMP_R_0_BIT = 2;
-    localparam TMP_0_BIT   = 3;
-    localparam W_R_0_BIT   = 4;
-    localparam W_0_BIT     = 5;
-    localparam R_0_BIT     = 6;
-    localparam ALL_1_BIT   = 7;
     // flags
-    reg                     [7:0]                           status,status_nxt;
+    // reg                     [2:0]                           status,status_nxt;
     reg                                                     in_to_w;
     reg                                                     in_to_r;
     reg                                                     in_to_tmp;
     reg                                                     tmp_to_w;
     reg                                                     tmp_to_r;
-    reg                                                     shut_w,shut_r;
+    // reg                                                     shut_w,shut_r;
     // 产生ready信号，控制状态转移
     always @* begin
-        status_nxt   = status;
+        // status_nxt   = status;
         in_ready_nxt = in_ready;
         // 5种数据流向
         in_to_w   = 0;
@@ -127,260 +109,116 @@ module tlp_demux #(
         in_to_tmp = 0;
         tmp_to_w  = 0;
         tmp_to_r  = 0;
-        shut_w    = 0;
-        shut_r    = 0;
-        case(1'b1)
-            status[ALL_0_BIT]: begin
-                in_ready_nxt = 1'b1;
-                // shut_r    = 1;
-                // shut_w    = 1;
-                if (in_valid_wire & in_ready) begin // 输入数据有效
-                    in_to_w    = wr_rd; // 写请求
-                    in_to_r    = !wr_rd; // 读请求
-                    status_nxt = (wr_rd) ? TMP_R_0 : TMP_W_0;
-                    // shut_w  = wr_rd ? 0:1;
-                    // shut_r  = wr_rd ? 1:0;
-                end
-            end
-            status[TMP_W_0_BIT]: begin
-                in_ready_nxt = 1'b1;
-                // shut_w    = 1;
-                if (in_valid_wire & in_ready) begin // 输入数据有效
-                    // shut_w = wr_rd ? 0:1;
-                    if (r_out_ready) begin
-                        in_to_r    = !wr_rd;
-                        in_to_w    = wr_rd;
-                        status_nxt = wr_rd ? TMP_R_0 : TMP_W_0;
-                        // shut_r  = 1;
-                    end
-                    else begin
-                        in_to_tmp  = !wr_rd;
-                        in_to_w    = wr_rd;
-                        status_nxt = wr_rd ? TMP_0 : W_0;
-                    end
-                end
-                else begin
-                    if (r_out_ready) begin
-                        shut_r     = 1'b1; // 将R数据置为无效
-                        status_nxt = ALL_0;
-                        
-                    end
-                end
-            end
-            status[TMP_R_0_BIT]: begin
-                in_ready_nxt = 1'b1;
-                // shut_r    = 1;
-                if (in_valid_wire & in_ready) begin // 输入数据有效
-                    // shut_r = wr_rd?1:0;
-                    if (w_out_ready) begin
-                        in_to_r    = !wr_rd;
-                        in_to_w    = wr_rd;
-                        status_nxt = wr_rd ? TMP_R_0 : TMP_W_0;
-                        // shut_w  = 1;
-                    end
-                    else begin
-                        in_to_tmp  = wr_rd;
-                        in_to_r    = !wr_rd;
-                        status_nxt = wr_rd ? R_0 : TMP_0;
-                    end
-                end
-                else begin
-                    if (r_out_ready) begin
-                        status_nxt = ALL_0;
-                        shut_r     = 1;
-                    end
-                end
-            end
-            status[TMP_0_BIT]: begin
-                in_ready_nxt = 1'b1;
-                if (in_valid_wire & in_ready) begin
-                    if (w_out_ready | r_out_ready) begin
-                        if (w_out_ready & r_out_ready) begin
-                            in_to_w    = wr_rd; // 写请求
-                            in_to_r    = !wr_rd; // 读请求
-                            status_nxt = (wr_rd) ? TMP_R_0 : TMP_W_0;
-                            shut_r     = 1;
-                            shut_w     = 1;
-                        end
-                        else if (w_out_ready) begin
-                            in_to_tmp  = !wr_rd;
-                            in_to_w    = wr_rd;
-                            status_nxt = wr_rd ? TMP_0 : W_0;
-                            shut_w     = 1;
-                        end
-                        else begin
-                            in_to_tmp  = wr_rd;
-                            in_to_r    = !wr_rd;
-                            status_nxt = wr_rd ? R_0 : TMP_0;
-                            shut_r     = 1;
-                        end
-                    end
-                    else begin
-                        in_to_tmp  = 1'b1;
-                        status_nxt = ALL_1;
-                    end
-                end
-                else begin
-                    if (w_out_ready | r_out_ready) begin
-                        if (w_out_ready & r_out_ready) begin
-                            status_nxt = ALL_0;
-                            shut_r     = 1;
-                            shut_w     = 1;
-                        end
-                        else if (w_out_ready) begin
-                            status_nxt = TMP_W_0;
-                            shut_w     = 1;
-                        end
-                        else begin
-                            status_nxt = TMP_R_0;
-                            shut_r     = 1;
-                        end
-                    end
-                end
-            end
-            status[W_R_0_BIT]: begin
-                in_ready_nxt = 1'b1;
-                // shut_r    = tmp_wr_rd ? 1 : 0;
-                // shut_w    = tmp_wr_rd ? 0 : 1;
-                tmp_to_r     = !tmp_wr_rd;
-                tmp_to_w     = tmp_wr_rd;
-                if (in_valid_wire & in_ready) begin
-                    in_to_tmp  = 1'b1;
-                    status_nxt = tmp_wr_rd ? R_0 : W_0;
-                end
-                else begin
-                    status_nxt = tmp_wr_rd ? TMP_R_0 : TMP_W_0;
-                end
-            end
-            status[W_0_BIT]: begin
-                in_ready_nxt = 1'b0;
-                // shut_w    = 1;
-                if (r_out_ready) begin
-                    // shut_r = 1;
-                    tmp_to_r  = !tmp_wr_rd;
-                end
-                else begin
-                    tmp_to_w  = tmp_wr_rd;
-                    // shut_w = 0;
-                end
-                status_nxt = tmp_wr_rd ? (r_out_ready ? TMP_R_0 : TMP_0) : (r_out_ready ? TMP_W_0 : W_0);
-            end
-            status[R_0_BIT]: begin
-                in_ready_nxt = 1'b0;
-                // shut_r    = 1;
-                if (w_out_ready) begin
-                    tmp_to_w  = tmp_wr_rd;
-                    // shut_w = 1;
-                end
-                else begin
-                    tmp_to_r  = !tmp_wr_rd;
-                    // shut_r = 0;
-                end
-                status_nxt = tmp_wr_rd ? (w_out_ready ? TMP_R_0 : R_0) : (w_out_ready ? TMP_W_0 : TMP_0);
-            end
-            status[ALL_1_BIT]: begin
-                in_ready_nxt = 1'b0;
-                if (r_out_ready | w_out_ready) begin
-                    if (r_out_ready & w_out_ready) begin
-                        status_nxt = W_R_0;
-                        shut_r     = 1;
-                        shut_w     = 1;
-                    end
-                    else if (w_out_ready) begin
-                        status_nxt = W_0;
-                        shut_w     = 1;
-                    end
-                    else begin
-                        status_nxt = R_0;
-                        shut_r     = 1;
-                    end
-                end
-            end
-            default:in_ready_nxt = 1'b0;
-        endcase
-    end
-    always @(posedge clk) begin
-        if (!rst_n) begin
-            status   <= 8'b1;
-            // in_ready <= 1'b0;
+        // shut_w = 0;
+        // shut_r = 0;
+        // 三种使能信号
+        tmp_valid_nxt   = tmp_valid;
+        r_out_valid_nxt = r_out_valid;
+        w_out_valid_nxt = w_out_valid;
+        if (!tmp_valid) begin
+            in_ready_nxt = 1'b1;
         end
         else begin
-            status   <= status_nxt;
-            // in_ready <= in_ready_nxt;
+            in_ready_nxt = (wr_rd & !tmp_wr_rd & !w_out_valid) | (!wr_rd & tmp_wr_rd & !r_out_valid);
+        end
+        
+        if (in_ready & in_valid_wire) begin
+            in_ready_nxt = 0;
+            in_to_w      = wr_rd & !tmp_valid & !w_out_valid;
+            in_to_r      = (!wr_rd) & !tmp_valid & !r_out_valid;
+            in_to_tmp    = !tmp_valid & (w_out_valid & r_out_valid);
+        end
+        
+        tmp_to_w = tmp_wr_rd & tmp_valid & !w_out_valid;
+        tmp_to_r = !tmp_wr_rd & tmp_valid & !r_out_valid;
+        
+        w_out_valid_nxt = in_to_w | tmp_to_w;
+        r_out_valid_nxt = in_to_r | tmp_to_r;
+        tmp_valid_nxt   = in_to_tmp;
+        
+        if (w_out_valid & w_out_ready) begin
+            w_out_valid_nxt = 0;
+            w_out_sop_nxt = 0;
+            w_out_eop_nxt = 0;
+        end
+        
+        if (r_out_ready & r_out_valid) begin
+            r_out_valid_nxt = 0;
+            r_out_sop_nxt = 0;
+            r_out_eop_nxt = 0;
+        end
+        
+        if (tmp_to_w | tmp_to_r) begin
+            tmp_valid_nxt = 0;
         end
     end
     /*
      * 数据传递
      */
     always @* begin
-        tmp_data_nxt  = tmp_data;
-        tmp_hdr_nxt   = tmp_hdr;
-        tmp_sop_nxt   = tmp_sop;
-        tmp_eop_nxt   = tmp_eop;
-        tmp_valid_nxt = tmp_valid;
+        tmp_data_nxt     = tmp_data;
+        tmp_hdr_nxt      = tmp_hdr;
+        tmp_sop_nxt      = tmp_sop;
+        tmp_eop_nxt      = tmp_eop;
+        // tmp_valid_nxt = tmp_valid;
         
-        r_out_data_nxt  = r_out_data;
-        r_out_hdr_nxt   = r_out_hdr;
-        r_out_sop_nxt   = r_out_sop;
-        r_out_eop_nxt   = r_out_eop;
-        r_out_valid_nxt = r_out_valid;
+        r_out_data_nxt     = r_out_data;
+        r_out_hdr_nxt      = r_out_hdr;
+        r_out_sop_nxt      = r_out_sop;
+        r_out_eop_nxt      = r_out_eop;
+        // r_out_valid_nxt = r_out_valid;
         
-        w_out_data_nxt  = w_out_data;
-        w_out_hdr_nxt   = w_out_hdr;
-        w_out_sop_nxt   = w_out_sop;
-        w_out_eop_nxt   = w_out_eop;
-        w_out_valid_nxt = w_out_valid;
+        w_out_data_nxt     = w_out_data;
+        w_out_hdr_nxt      = w_out_hdr;
+        w_out_sop_nxt      = w_out_sop;
+        w_out_eop_nxt      = w_out_eop;
+        // w_out_valid_nxt = w_out_valid;
         // 输入到缓存
         if (in_to_tmp) begin
-            tmp_data_nxt  = in_data_wire;
-            tmp_hdr_nxt   = in_hdr_wire;
-            tmp_sop_nxt   = in_sop_wire;
-            tmp_eop_nxt   = in_eop_wire;
-            tmp_valid_nxt = in_valid_wire;
+            tmp_data_nxt     = in_data_wire;
+            tmp_hdr_nxt      = in_hdr_wire;
+            tmp_sop_nxt      = in_sop_wire;
+            tmp_eop_nxt      = in_eop_wire;
+            // tmp_valid_nxt = in_valid_wire;
         end
         // 输入到读输出
         if (in_to_r) begin
-            r_out_data_nxt  = in_data_wire;
-            r_out_hdr_nxt   = in_hdr_wire;
-            r_out_sop_nxt   = in_sop_wire;
-            r_out_eop_nxt   = in_eop_wire;
-            r_out_valid_nxt = in_valid_wire;
+            r_out_data_nxt     = in_data_wire;
+            r_out_hdr_nxt      = in_hdr_wire;
+            r_out_sop_nxt      = in_sop_wire;
+            r_out_eop_nxt      = in_eop_wire;
+            // r_out_valid_nxt = in_valid_wire;
         end
         // 输入到写输出
-        if (in_to_r) begin
-            w_out_data_nxt  = in_data_wire;
-            w_out_hdr_nxt   = in_hdr_wire;
-            w_out_sop_nxt   = in_sop_wire;
-            w_out_eop_nxt   = in_eop_wire;
-            w_out_valid_nxt = in_valid_wire;
+        if (in_to_w) begin
+            w_out_data_nxt     = in_data_wire;
+            w_out_hdr_nxt      = in_hdr_wire;
+            w_out_sop_nxt      = in_sop_wire;
+            w_out_eop_nxt      = in_eop_wire;
+            // w_out_valid_nxt = in_valid_wire;
         end
         // 缓存到读输出
         if (tmp_to_r) begin
-            r_out_data_nxt  = tmp_data;
-            r_out_hdr_nxt   = tmp_hdr;
-            r_out_sop_nxt   = tmp_sop;
-            r_out_eop_nxt   = tmp_eop;
-            r_out_valid_nxt = tmp_valid;
+            r_out_data_nxt     = tmp_data;
+            r_out_hdr_nxt      = tmp_hdr;
+            r_out_sop_nxt      = tmp_sop;
+            r_out_eop_nxt      = tmp_eop;
+            // r_out_valid_nxt = tmp_valid;
         end
         // 缓存到写输出
         if (tmp_to_w) begin
-            w_out_data_nxt  = tmp_data;
-            w_out_hdr_nxt   = tmp_hdr;
-            w_out_sop_nxt   = tmp_sop;
-            w_out_eop_nxt   = tmp_eop;
-            w_out_valid_nxt = tmp_valid;
+            w_out_data_nxt     = tmp_data;
+            w_out_hdr_nxt      = tmp_hdr;
+            w_out_sop_nxt      = tmp_sop;
+            w_out_eop_nxt      = tmp_eop;
+            // w_out_valid_nxt = tmp_valid;
         end
-        //
-        // if (shut_w) begin
-        //     w_out_valid_nxt = 0;
-        // end
-        // //
-        // if (shut_r) begin
-        //     r_out_valid_nxt = 0;
-        // end
     end
     always @(posedge clk) begin
         if (!rst_n) begin
+            // status   <= 0;
+            in_ready <= 0;
+            
             tmp_data  <= 0;
             tmp_hdr   <= 0;
             tmp_sop   <= 0;
@@ -400,6 +238,9 @@ module tlp_demux #(
             w_out_valid <= 0;
         end
         else begin
+            // status   <= status_nxt;
+            in_ready <= in_ready_nxt;
+            
             tmp_data  <= tmp_data_nxt;
             tmp_hdr   <= tmp_hdr_nxt;
             tmp_sop   <= tmp_sop_nxt;
@@ -410,13 +251,13 @@ module tlp_demux #(
             r_out_hdr   <= r_out_hdr_nxt;
             r_out_sop   <= r_out_sop_nxt;
             r_out_eop   <= r_out_eop_nxt;
-            r_out_valid <= r_out_valid_nxt & !shut_r;
+            r_out_valid <= r_out_valid_nxt;
             
             w_out_data  <= w_out_data_nxt;
             w_out_hdr   <= w_out_hdr_nxt;
             w_out_sop   <= w_out_sop_nxt;
             w_out_eop   <= w_out_eop_nxt;
-            w_out_valid <= w_out_valid_nxt & !shut_w;
+            w_out_valid <= w_out_valid_nxt;
         end
     end
     

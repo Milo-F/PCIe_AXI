@@ -4,7 +4,7 @@
  *    author: Milo
  *    Data: 2022-03-22
  *    Version: 1.0
-----------------------------------------*/
+ ----------------------------------------*/
 
 module syn_fifo #(
     DATA_WIDTH              =        8,
@@ -17,17 +17,17 @@ module syn_fifo #(
     input                   [DATA_WIDTH - 1 : 0]            w_data,
     input                                                   r_en,
     output                  [DATA_WIDTH - 1 : 0]            r_data,
-    output                                                  is_empty,
-    output                                                  is_full,
-    output                  [ADDR_WIDTH : 0]                room_avail,
-    output                  [ADDR_WIDTH : 0]                data_avail
+    output      reg                                         is_empty,
+    output      reg                                         is_full,
+    output      reg         [ADDR_WIDTH : 0]                room_avail,
+    output      reg         [ADDR_WIDTH : 0]                data_avail
 );
     // flip-flop output
     // reg         [DATA_WIDTH - 1 : 0]    r_data, r_data_nxt;
-    reg                     [ADDR_WIDTH : 0]                room_avail,room_avail_nxt;
-    reg                     [ADDR_WIDTH : 0]                data_avail,data_avail_nxt;
-    reg                                                     is_empty,is_empty_nxt;
-    reg                                                     is_full,is_full_nxt;
+    reg                     [ADDR_WIDTH : 0]                room_avail_nxt;
+    reg                     [ADDR_WIDTH : 0]                data_avail_nxt;
+    reg                                                     is_empty_nxt;
+    reg                                                     is_full_nxt;
     // write and read pointer
     reg                     [ADDR_WIDTH : 0]                w_ptr,w_ptr_nxt;
     reg                     [ADDR_WIDTH : 0]                r_ptr,r_ptr_nxt;
@@ -54,8 +54,8 @@ module syn_fifo #(
     always @* begin
         is_empty_nxt = 0;
         is_full_nxt  = 0;
-        if (w_ptr[ADDR_WIDTH - 1 : 0] == r_ptr[ADDR_WIDTH - 1 : 0]) begin
-            if (w_ptr[ADDR_WIDTH] ^ r_ptr[ADDR_WIDTH]) begin
+        if (w_ptr_nxt[ADDR_WIDTH - 1 : 0] == r_ptr_nxt[ADDR_WIDTH - 1 : 0]) begin
+            if (w_ptr_nxt[ADDR_WIDTH] ^ r_ptr_nxt[ADDR_WIDTH]) begin
                 is_full_nxt = 1'b1;
             end
             else begin
