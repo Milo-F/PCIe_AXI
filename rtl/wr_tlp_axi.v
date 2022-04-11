@@ -217,9 +217,13 @@ module wr_tlp_axi #(
     assign axi_tr_cnt_minus1 = axi_tr_cnt - 1'b1;
     wire                    [AXI_ADDR_WIDTH-1:0]            hdr_lock_addr;
     wire                    [10:0]                          hdr_lock_length;
+    wire                    [3:0]                           hdr_lock_first_be;
+    wire                    [3:0]                           hdr_lock_last_be;
     reg                     [AXI_ADDR_INC_LOG - 1:0]        offset_lock,offset_lock_nxt;
-    assign hdr_lock_length = {tlp_hdr_in[105:96] == 10'b0, tlp_hdr_in[105:96]};
-    assign hdr_lock_addr   = tlp_hdr_in[125] ? {tlp_hdr_in[63:2], 2'b0} : {32'b0,tlp_hdr_in[31:2],2'b0}; // 分为4DW和3DW对应于64位地址和32位地址
+    assign hdr_lock_length   = {tlp_hdr_in[105:96] == 10'b0, tlp_hdr_in[105:96]};
+    assign hdr_lock_addr     = tlp_hdr_in[125] ? {tlp_hdr_in[63:2], 2'b0} : {32'b0,tlp_hdr_in[31:2],2'b0}; // 分为4DW和3DW对应于64位地址和32位地址
+    assign hdr_lock_last_be  = tlp_hdr_in[71:68];
+    assign hdr_lock_first_be = tlp_hdr_in[67:64];
     // 状态转移，控制数据从fifo到axi的发送状态
     always @* begin // 从FIFO中取出数据发送AXI，根据tlp_header产生AXI控制信号，以及控制burst传输次数
         status_nxt      = status;
@@ -244,6 +248,7 @@ module wr_tlp_axi #(
         axi_wstrb_nxt    = axi_wstrb;
         axi_wlast_nxt    = axi_wlast;
         axi_wvalid_nxt   = axi_wvalid;
+        
         
         case (1'b1)
             status[IDLE_IDX]: begin // 空闲等待状态 配置axi_awlen,axi_awaddr
@@ -284,7 +289,7 @@ module wr_tlp_axi #(
                         if (r_en) begin // 读取数据
                             r_en_nxt         = 0;
                             // axi_wdata_nxt = data_to_axi;
-                            axi_wstrb_nxt    = {AXI_STRB_WIDTH{1'b1}}<<(offset_lock<<2); // 第一个数据的数据阀门
+                            axi_wstrb_nxt    = {{(AXI_STRB_WIDTH-4){1'b1}},hdr_lock_first_be}<<(offset_lock<<2); // 第一个数据的数据阀门
                             axi_wvalid_nxt   = 1'b1;
                             // axi_wlast_nxt = (burst_cnt == 1);
                         end
@@ -342,7 +347,7 @@ module wr_tlp_axi #(
                             if (r_en) begin
                                 r_en_nxt         = 0;
                                 // axi_wdata_nxt = data_to_axi;
-                                axi_wstrb_nxt    = (axi_tr_cnt == 1)?{AXI_STRB_WIDTH{1'b1}}>>(offset_lock<<2):{AXI_STRB_WIDTH{1'b1}};
+                                axi_wstrb_nxt    = (axi_tr_cnt == 1)?{hdr_lock_last_be,{(AXI_STRB_WIDTH-4){1'b1}}}>>(offset_lock<<2):{AXI_STRB_WIDTH{1'b1}};
                                 // axi_wlast_nxt = (burst_cnt == 1);
                                 axi_wvalid_nxt   = 1'b1;
                             end
