@@ -69,8 +69,8 @@ module wr_tlp_axi #(
     wire                    [10:0]                          hdr_length;    // [9:0] 标识携带的数据长度，最多1024DW，最少1DW
     wire                    [15:0]                          hdr_req_id;
     wire                    [9:0]                           hdr_tag;
-    wire                    [7:0]                           hdr_first_be;
-    wire                    [7:0]                           hdr_last_be;
+    wire                    [3:0]                           hdr_first_be;
+    wire                    [3:0]                           hdr_last_be;
     wire                    [63:0]                          hdr_addr;
     wire                    [1:0]                           hdr_ph;    // processing hints,标识数据访问模式，00，双向，01，由ep发起request，10，由host发起读写，11，由host发起读写且高临时性
     assign hdr_fmt      = tlp_hdr[127:125];
@@ -209,9 +209,11 @@ module wr_tlp_axi #(
     localparam AXI_TR_CNT_WIDTH = $clog2(AXI_TR_MAX_TIMES)+1; // 比如128次需要9位计数
     localparam AXI_DW_WIDTH     = AXI_DATA_WIDTH/DOUBLE_WORD; // 256/32     = 8
     localparam AXI_DW_WIDTH_LOG = $clog2(AXI_DW_WIDTH);
+    localparam AXI_SIZE = $clog2(AXI_DATA_WIDTH/8);
     reg                     [AXI_TR_CNT_WIDTH-1:0]          axi_tr_cnt,axi_tr_cnt_nxt;    // AXI发送计数器，数据传输需求次数超过256次就要分多次burst传输。
     wire                    [AXI_TR_CNT_WIDTH-1:0]          axi_tr_cnt_minus1;
     reg                     [8:0]                           burst_cnt,burst_cnt_nxt;    // 单次burst传输的计数器
+    reg                     [1:0]                           first_be_offset;
     wire                    [8:0]                           burst_cnt_minus1;
     assign burst_cnt_minus1  = burst_cnt - 1'b1;
     assign axi_tr_cnt_minus1 = axi_tr_cnt - 1'b1;
@@ -220,7 +222,7 @@ module wr_tlp_axi #(
     wire                    [3:0]                           hdr_lock_first_be;
     wire                    [3:0]                           hdr_lock_last_be;
     reg                     [AXI_ADDR_INC_LOG - 1:0]        offset_lock,offset_lock_nxt;
-    assign hdr_lock_length   = {tlp_hdr_in[105:96] == 10'b0, tlp_hdr_in[105:96]};
+    assign hdr_lock_length   = {tlp_hdr_in[105:96] == 10'b0, tlp_hdr_in[105:96]} - 1'b1;
     assign hdr_lock_addr     = tlp_hdr_in[125] ? {tlp_hdr_in[63:2], 2'b0} : {32'b0,tlp_hdr_in[31:2],2'b0}; // 分为4DW和3DW对应于64位地址和32位地址
     assign hdr_lock_last_be  = tlp_hdr_in[71:68];
     assign hdr_lock_first_be = tlp_hdr_in[67:64];
@@ -236,11 +238,11 @@ module wr_tlp_axi #(
         axi_awid_nxt    = 0;
         axi_awaddr_nxt  = axi_awaddr;
         axi_awlen_nxt   = axi_awlen;
-        axi_awsize_nxt  = $clog2(AXI_DATA_WIDTH/8); // 256/8  = 32 2^5 101
+        axi_awsize_nxt  = AXI_SIZE; // 256/8  = 32 2^5 101
         axi_awburst_nxt = 2'b01; // inc burst type
         axi_awlock_nxt  = 1'b0; // unlock
         axi_awcache_nxt = 4'b0011; // cacheable and bufferable but unallocatable
-        axi_awprot_nxt  = 3'b101; // noprivilage unsafe and data transfer
+        axi_awprot_nxt  = 3'b010; // noprivilage unsafe and data transfer
         axi_awvalid_nxt = axi_awvalid;
         
         // axi w
@@ -249,15 +251,24 @@ module wr_tlp_axi #(
         axi_wlast_nxt    = axi_wlast;
         axi_wvalid_nxt   = axi_wvalid;
         
+        // first_be_offset
+        casez (hdr_lock_first_be)
+            4'b0000: first_be_offset = 2'b00;
+            4'bzzz1: first_be_offset = 2'b00;
+            4'bzz10: first_be_offset = 2'b01;
+            4'bz100: first_be_offset = 2'b10;
+            4'b1000: first_be_offset = 2'b11;
+            default: first_be_offset = 2'b00;
+        endcase
         
         case (1'b1)
             status[IDLE_IDX]: begin // 空闲等待状态 配置axi_awlen,axi_awaddr
-                axi_awaddr_nxt  = hdr_lock_addr;
-                axi_tr_cnt_nxt  = (hdr_lock_length >> AXI_DW_WIDTH_LOG);
+                axi_awaddr_nxt  = hdr_lock_addr + first_be_offset; // 数据写入的初始地址
+                axi_tr_cnt_nxt  = (hdr_lock_length >> AXI_DW_WIDTH_LOG)+1'b1;
                 offset_lock_nxt = hdr_lock_addr[AXI_ADDR_INC_LOG+2-1:2]; // 4:2,表示以DW存储的非对齐地址偏移
                 // 配置awlen，如果需要的发送次数超过了256，则需要多次burst传输，
                 if (axi_tr_cnt_nxt <= 256) begin
-                    axi_awlen_nxt = (hdr_lock_length >> AXI_DW_WIDTH_LOG)-1'b1; // 需要几次传几次
+                    axi_awlen_nxt = (hdr_lock_length >> AXI_DW_WIDTH_LOG); // 需要几次传几次
                     burst_cnt_nxt = axi_tr_cnt_nxt;
                 end
                 else begin
@@ -320,7 +331,7 @@ module wr_tlp_axi #(
                                 status_nxt   = WAITE_END;
                             end
                             else begin // 一次burst不足以发送整个TLP数据,继续发，修改地址，重发aw控制信号
-                                axi_awaddr_nxt = axi_awaddr + AXI_DATA_WIDTH/8; // 更新下一次burst地址
+                                axi_awaddr_nxt = axi_awaddr[63:AXI_SIZE] + 256*AXI_DATA_WIDTH/8; // 更新下一次burst地址
                                 // 更新下一次burst len
                                 if (axi_tr_cnt <= 256) begin
                                     axi_awlen_nxt = axi_tr_cnt-1'b1; // 需要几次传几次
