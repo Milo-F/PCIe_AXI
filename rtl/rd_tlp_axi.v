@@ -22,7 +22,7 @@ module rd_tlp_axi #(
     output      reg                                         cpl_tlp_eop,
     output      reg                                         cpl_tlp_valid,
     input       wire                                        cpl_tlp_ready,
-    input       reg         [AXI_ID_WIDTH-1:0]              axi_arid,
+    output      reg         [AXI_ID_WIDTH-1:0]              axi_arid,
     output      reg         [AXI_ADDR_WIDTH-1:0]            axi_araddr,
     output      reg         [2:0]                           axi_arsize,
     output      reg         [7:0]                           axi_arlen,
@@ -37,6 +37,7 @@ module rd_tlp_axi #(
     input       wire                                        axi_rlast,
     input       wire                                        axi_rvalid,
     output      reg                                         axi_rready,
+    input       wire        [15:0]                          completer_id,
     output      reg                                         tlp_error
 );
     // request tlp
@@ -152,6 +153,8 @@ module rd_tlp_axi #(
     localparam AXI_REQ_BURST_LEN = 1024*DOUBLE_WORD/AXI_DATA_WIDTH;
     localparam BURST_CNT_LOG     = $clog2(AXI_REQ_BURST_LEN)+1;
     localparam AXI_SIZE          = $clog2(AXI_DATA_WIDTH/8);
+    localparam RCB_CNT_DEFAULT   = RCB/(AXI_DATA_WIDTH>>3);
+    localparam CPL_CNT_LOG       = $clog2(RCB_CNT_DEFAULT);
     reg                     [BURST_CNT_LOG-1:0]             globle_tr_cnt,globle_tr_cnt_nxt;    // 全局计数，传输所有数据需要几次transfer
     reg                     [8:0]                           burst_cnt,burst_cnt_nxt;    // burst trnansfer 计数，记录一次burst进行了几次发送
     reg                                                     axi_first,axi_first_nxt;
@@ -225,7 +228,7 @@ module rd_tlp_axi #(
             end
             axi_first_nxt = 1'b1;
             cpl_first_nxt = 1'b1;
-            rcb_cnt_nxt = ~(req_addr[7:AXI_SIZE+1])+1'b1 // 对齐到128字节边界需要的第一次传输的次数
+            rcb_cnt_nxt   = ~(req_addr[7:AXI_SIZE+1])+1'b1; // 对齐到128字节边界需要的第一次传输的次数
         end
         // 一次burst结束更新ar控制信号
         if (busy_r & axi_rlast) begin
@@ -337,45 +340,49 @@ module rd_tlp_axi #(
     reg                     [15:0]                          cpl_com_id;
     reg                     [2:0]                           cpl_com_status;
     reg                                                     cpl_bcm;
-    reg                     [11:0]                          cpl_byte_cnt;
+    reg                     [11:0]                          cpl_byte_cnt,cpl_byte_cnt_nxt;
     reg                     [15:0]                          cpl_req_id;
     reg                     [6:0]                           cpl_lower_addr;
     
     wire                    [2*AXI_DATA_WIDTH-1:0]          axi_shift;
-    assign axi_shift           = {axi_rdata, axi_rdata_in}<<(~axi_araddr[AXI_SIZE-1:0]);
-    localparam RCB_CNT_DEFAULT = RCB/(AXI_DATA_WIDTH>>3);
-    localparam CPL_CNT_LOG     = $clog2(RCB_CNT_DEFAULT);
+    assign axi_shift = {axi_rdata, axi_rdata_in}<<(~axi_araddr[AXI_SIZE-1:0]);
     
     always @* begin
         // default values
-        cpl_fmt  = (|req_length) ? 3'b010 : 3'b000; // 根据请求的length确定cpl是否包含数据
-        cpl_type = 5'b01010;
-        cpl_tc   = 3'b0;
-        cpl_ln   = 1'b0;
-        cpl_th   = 1'b0;
-        cpl_ep   = 1'b0;
-        cpl_td   = 1'b0;
-        cpl_at   = 2'b0;
+        cpl_fmt          = (|req_length) ? 3'b010 : 3'b000; // 根据请求的length确定cpl是否包含数据
+        cpl_type         = 5'b01010;
+        cpl_tc           = 3'b0;
+        cpl_ln           = 1'b0;
+        cpl_th           = 1'b0;
+        cpl_ep           = 1'b0;
+        cpl_td           = 1'b0;
+        cpl_at           = 2'b0;
+        cpl_tag          = req_tag;
+        cpl_req_id       = req_req_id;
+        cpl_com_id       = completer_id;
+        cpl_com_status   = 3'b0;
+        cpl_attr         = req_attr;
+        cpl_byte_cnt_nxt = cpl_byte_cnt;
         // cpl header
         cpl_tlp_hdr_nxt[127:125] = cpl_fmt;
         cpl_tlp_hdr_nxt[124:120] = cpl_type;
-        cpl_tlp_hdr_nxt[119]     = cpl_tag[9]; // TODO
+        cpl_tlp_hdr_nxt[119]     = cpl_tag[9];
         cpl_tlp_hdr_nxt[118:116] = cpl_tc;
-        cpl_tlp_hdr_nxt[115]     = cpl_tag[8]; // TODO
-        cpl_tlp_hdr_nxt[114]     = cpl_attr[2]; // TODO
+        cpl_tlp_hdr_nxt[115]     = cpl_tag[8];
+        cpl_tlp_hdr_nxt[114]     = cpl_attr[2];
         cpl_tlp_hdr_nxt[113]     = cpl_ln;
         cpl_tlp_hdr_nxt[112]     = cpl_th;
         cpl_tlp_hdr_nxt[111]     = cpl_td;
         cpl_tlp_hdr_nxt[110]     = cpl_ep;
-        cpl_tlp_hdr_nxt[109:108] = cpl_attr[1:0]; // TODO
+        cpl_tlp_hdr_nxt[109:108] = cpl_attr[1:0];
         cpl_tlp_hdr_nxt[107:106] = cpl_at;
         cpl_tlp_hdr_nxt[105:96]  = cpl_length; // TODO
-        cpl_tlp_hdr_nxt[95:80]   = cpl_com_id; // TODO
-        cpl_tlp_hdr_nxt[79:77]   = cpl_com_status; // TODO
+        cpl_tlp_hdr_nxt[95:80]   = cpl_com_id;
+        cpl_tlp_hdr_nxt[79:77]   = cpl_com_status;
         cpl_tlp_hdr_nxt[76]      = cpl_bcm;
-        cpl_tlp_hdr_nxt[75:64]   = cpl_byte_cnt; // TODO
-        cpl_tlp_hdr_nxt[63:48]   = cpl_req_id; // TODO
-        cpl_tlp_hdr_nxt[47:40]   = cpl_tag; // TODO
+        cpl_tlp_hdr_nxt[75:64]   = cpl_byte_cnt_nxt; // TODO
+        cpl_tlp_hdr_nxt[63:48]   = cpl_req_id;
+        cpl_tlp_hdr_nxt[47:40]   = cpl_tag;
         cpl_tlp_hdr_nxt[39]      = 1'b0;
         cpl_tlp_hdr_nxt[38:32]   = cpl_lower_addr; // TODO
         cpl_tlp_hdr_nxt[31:0]    = 32'b0;
@@ -388,51 +395,76 @@ module rd_tlp_axi #(
         
         cpl_first_nxt = cpl_first;
         
-        if (cpl_tlp_eop) begin
-            cpl_first_nxt = 1'b0;
-            rcb_cnt_nxt   = RCB_CNT_DEFAULT;
-        end
-        // clear
-        if (cpl_tlp_valid & cpl_tlp_ready) begin
-            cpl_tlp_valid_nxt = 1'b0;
-            cpl_tlp_sop_nxt   = 1'b0;
-            cpl_tlp_eop_nxt   = 1'b0;
-            rcb_cnt_nxt       = cpl_first ? (rcb_cnt - 1'b1) : rcb_cnt;
-        end
-        // data sop
-        if (axi_rready & axi_rvalid & ~axi_first) begin
-            cpl_tlp_valid_nxt = 1'b1;
-            if (cpl_first) begin
-                cpl_tlp_data_nxt = axi_shift[2*AXI_DATA_WIDTH-1:AXI_DATA_WIDTH];
-                if (rcb_cnt == (~(req_addr[7:AXI_SIZE+1])+1'b1)) begin
-                    cpl_tlp_sop_nxt = 1'b1;
+        if (req_busy) begin
+            if (cpl_tlp_eop) begin
+                cpl_first_nxt = 1'b0;
+                rcb_cnt_nxt   = RCB_CNT_DEFAULT;
+            end
+            // clear
+            if (cpl_tlp_valid & cpl_tlp_ready) begin
+                cpl_tlp_valid_nxt = 1'b0;
+                cpl_tlp_sop_nxt   = 1'b0;
+                cpl_tlp_eop_nxt   = 1'b0;
+                rcb_cnt_nxt       = cpl_first ? (rcb_cnt - 1'b1) : rcb_cnt;
+            end
+            // data sop header
+            if (axi_rready & axi_rvalid) begin
+                if (axi_first) begin
+                    cpl_byte_cnt_nxt = ((req_length-1'b1)<<4)+single_dword_len; // 初始需要发送的byte数
                 end
+                else begin
+                    cpl_tlp_valid_nxt = 1'b1;
+                    if (cpl_first) begin
+                        cpl_tlp_data_nxt = axi_shift[2*AXI_DATA_WIDTH-1:AXI_DATA_WIDTH];
+                        if (rcb_cnt == (~(req_addr[6:AXI_SIZE])+1'b1)) begin
+                            cpl_tlp_sop_nxt = 1'b1;
+                        end
+                    end
+                    else begin
+                        cpl_tlp_data_nxt = axi_rdata_in;
+                        if (rcb_cnt == RCB_CNT_DEFAULT) begin
+                            cpl_tlp_sop_nxt = 1'b1;
+                        end
+                    end
+                end
+            end
+            // header
+            if (cpl_tlp_sop_nxt) begin
+                if (cpl_first) begin
+                    cpl_lower_addr   = axi_araddr[6:0];
+                    cpl_length       = ~req_addr[6:2]+1'b1;
+                    cpl_byte_cnt_nxt = cpl_byte_cnt - (~axi_araddr[6:0]+1'b1);
+                end
+                else begin
+                    cpl_lower_addr   = 0;
+                    cpl_length       = (cpl_byte_cnt > RCB) ? (RCB>>2) : (cpl_byte_cnt>>2);
+                    cpl_byte_cnt_nxt = cpl_byte_cnt - RCB;
+                end
+            end
+            // normal eop
+            if (rcb_cnt == 1'b1) begin
+                if (axi_rvalid & axi_rready & ~axi_first) begin
+                    cpl_tlp_eop_nxt = 1'b1;
+                end
+            end
+            // last eop data
+            if (globle_tr_cnt == 0) begin // 最后一个数据
+                if (~cpl_tlp_valid & ~cpl_tlp_ready) begin
+                    cpl_tlp_eop_nxt   = 1'b1;
+                    cpl_tlp_strb_nxt  = axi_rstrb_in;
+                    cpl_tlp_data_nxt  = axi_rdata_in;
+                    cpl_tlp_valid_nxt = 1'b1;
+                end
+            end
+            // cpl strb
+            if (cpl_first & cpl_tlp_eop_nxt) begin // first cpl 最后一个数据对齐
+                cpl_tlp_strb_nxt = {TLP_STRB_WIDTH{1'b1}}>>(~axi_araddr[AXI_SIZE-1:0]+1'b1);
             end
             else begin
-                cpl_tlp_data_nxt = axi_rdata_in;
-                if (rcb_cnt == RCB_CNT_DEFAULT) begin
-                    cpl_tlp_sop_nxt = 1'b1;
-                end
+                cpl_tlp_strb_nxt = cpl_tlp_valid_nxt ? axi_rstrb_in : cpl_tlp_strb;
             end
-        end
-        // header update
-
-        // normal eop
-        if (rcb_cnt == 1'b1) begin
-            if (axi_rvalid & axi_rready & ~axi_first) begin
-                cpl_tlp_eop_nxt = 1'b1;
-            end
-        end
-        // last eop
-        if (globle_tr_cnt == 0) begin // 最后一个数据
-            
-        end
-        // cpl strb
-        if (cpl_first & cpl_tlp_eop_nxt) begin // first cpl 最后一个数据对齐
-            cpl_tlp_strb_nxt = {TLP_STRB_WIDTH{1'b1}}>>(~axi_araddr[AXI_SIZE-1:0]+1'b1);
-        end
-        else begin
-            cpl_tlp_strb_nxt = axi_rstrb_in;
+            // finish
+            req_busy_nxt = ~(~(|globle_tr_cnt)&cpl_tlp_valid&cpl_tlp_ready&cpl_tlp_eop);
         end
     end
     
