@@ -1,6 +1,6 @@
-./rtl/pcie_axi_m.v
-./rtl/rd_tlp_axi.v
-./rtl/wr_tlp_axi.v
-./rtl/tlp_demux.v
-./rtl/syn_fifo.v
-./rtl/fifo_ram.v
+ ./src/rtl/pcie_axi_m.v
+ ./src/rtl/rd_tlp_axi.v
+ ./src/rtl/wr_tlp_axi.v
+ ./src/rtl/tlp_demux.v
+ ./src/rtl/syn_fifo.v
+ ./src/rtl/fifo_ram.v
