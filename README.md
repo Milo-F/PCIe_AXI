@@ -12,4 +12,4 @@
 5. [syn_fifo.v](./src/rtl/syn_fifo.v): 同步fifo，缓存待写入AXI存储的数据；
 6. [fifo_ram.v](./src/rtl/fifo_ram.v): fifo使用的仿真ram存储单元。
 
-## 时序
+## Memory Read Request 时序
