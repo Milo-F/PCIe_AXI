@@ -2,6 +2,7 @@ module wr_tlp_axi #(
     DOUBLE_WORD             =        32,                                 // 双字
     HEADER_SIZE             =        4*DOUBLE_WORD,                      // TLP Header 4个双字宽度
     TLP_DATA_WIDTH          =        8*DOUBLE_WORD,                      // TLP数据总线宽度256bits
+    TLP_STRB_WIDTH          =        TLP_DATA_WIDTH/8,
     AXI_DATA_WIDTH          =        TLP_DATA_WIDTH,                     // AXI数据总线宽度256bits
     AXI_ADDR_WIDTH          =        64,                                 // AXI地址总线宽度64bits
     AXI_STRB_WIDTH          =        AXI_DATA_WIDTH/8,                   // AXI数据阀门
@@ -12,6 +13,7 @@ module wr_tlp_axi #(
     input                                                   rst_n,
     input       wire        [HEADER_SIZE-1:0]               tlp_hdr,     // 输入TLPheader
     input       wire        [TLP_DATA_WIDTH-1:0]            tlp_data,    // 输入TLP数据
+    input       wire        [TLP_STRB_WIDTH-1:0]            tlp_strb,
     input       wire                                        tlp_sop,     // 输入TLP开始标识
     input       wire                                        tlp_eop,     // 输入TLP结束标识
     input       wire                                        tlp_valid,
@@ -209,7 +211,7 @@ module wr_tlp_axi #(
     localparam AXI_TR_CNT_WIDTH = $clog2(AXI_TR_MAX_TIMES)+1; // 比如128次需要9位计数
     localparam AXI_DW_WIDTH     = AXI_DATA_WIDTH/DOUBLE_WORD; // 256/32     = 8
     localparam AXI_DW_WIDTH_LOG = $clog2(AXI_DW_WIDTH);
-    localparam AXI_SIZE = $clog2(AXI_DATA_WIDTH/8);
+    localparam AXI_SIZE         = $clog2(AXI_DATA_WIDTH/8);
     reg                     [AXI_TR_CNT_WIDTH-1:0]          axi_tr_cnt,axi_tr_cnt_nxt;    // AXI发送计数器，数据传输需求次数超过256次就要分多次burst传输。
     wire                    [AXI_TR_CNT_WIDTH-1:0]          axi_tr_cnt_minus1;
     reg                     [8:0]                           burst_cnt,burst_cnt_nxt;    // 单次burst传输的计数器

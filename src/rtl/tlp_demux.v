@@ -7,24 +7,28 @@ module tlp_demux #(
     PORTS                   =        2,                                  // 解复用输出端口，在此解复用器用作读写复用，故为2
     DOUBLE_WORD             =        32,                                 // 双字，32位
     HEADER_SIZE             =        4*DOUBLE_WORD,                      // Header4个双字，取决于host内存空间是否大于4GB
-    TLP_DATA_WIDTH          =        8*DOUBLE_WORD                       // 数据荷载8个双字
+    TLP_DATA_WIDTH          =        8*DOUBLE_WORD,                      // 数据荷载8个双字
+    TLP_STRB_WIDTH          =        TLP_DATA_WIDTH/8
 ) (
     input       wire                                        clk,
     input       wire                                        rst_n,
     input       wire        [TLP_DATA_WIDTH-1:0]            in_data,     // 输入TLP包数据
     input       wire        [HEADER_SIZE-1:0]               in_hdr,      // 输入TLP包头
+    input       wire        [TLP_STRB_WIDTH-1:0]            in_strb,
     input       wire                                        in_sop,
     input       wire                                        in_eop,
     input       wire                                        in_valid,
     output      reg                                         in_ready,
     output      reg         [TLP_DATA_WIDTH-1:0]            r_out_data,  // 输出读请求TLP包
     output      reg         [HEADER_SIZE-1:0]               r_out_hdr,
+    output      reg         [TLP_STRB_WIDTH-1:0]            r_out_strb,
     output      reg                                         r_out_sop,
     output      reg                                         r_out_eop,
     output      reg                                         r_out_valid,
     input                                                   r_out_ready,
     output      reg         [TLP_DATA_WIDTH-1:0]            w_out_data,  // 输出写请求TLP包
     output      reg         [HEADER_SIZE-1:0]               w_out_hdr,
+    output      reg         [TLP_STRB_WIDTH-1:0]            w_out_strb,
     output      reg                                         w_out_sop,
     output      reg                                         w_out_eop,
     output      reg                                         w_out_valid,
@@ -38,6 +42,7 @@ module tlp_demux #(
      */
     reg                     [TLP_DATA_WIDTH-1:0]            r_out_data_nxt;
     reg                     [HEADER_SIZE-1:0]               r_out_hdr_nxt;
+    reg                     [TLP_STRB_WIDTH-1:0]            r_out_strb_nxt;
     reg                                                     r_out_sop_nxt;
     reg                                                     r_out_eop_nxt;
     reg                                                     r_out_valid_nxt;
@@ -46,6 +51,7 @@ module tlp_demux #(
      */
     reg                     [TLP_DATA_WIDTH-1:0]            w_out_data_nxt;
     reg                     [HEADER_SIZE-1:0]               w_out_hdr_nxt;
+    reg                     [TLP_STRB_WIDTH-1:0]            w_out_strb_nxt;
     reg                                                     w_out_sop_nxt;
     reg                                                     w_out_eop_nxt;
     reg                                                     w_out_valid_nxt;
@@ -54,6 +60,7 @@ module tlp_demux #(
      */
     wire                    [TLP_DATA_WIDTH-1:0]            in_data_wire;
     wire                    [HEADER_SIZE-1:0]               in_hdr_wire;
+    wire                    [TLP_STRB_WIDTH-1:0]            in_strb_wire;
     wire                                                    in_sop_wire;
     wire                                                    in_eop_wire;
     wire                                                    in_valid_wire;
@@ -63,6 +70,7 @@ module tlp_demux #(
      */
     reg                     [TLP_DATA_WIDTH-1:0]            tmp_data,tmp_data_nxt;
     reg                     [HEADER_SIZE-1:0]               tmp_hdr,tmp_hdr_nxt;
+    reg                     [TLP_STRB_WIDTH-1:0]            tmp_strb,tmp_strb_nxt;
     reg                                                     tmp_sop,tmp_sop_nxt;
     reg                                                     tmp_eop,tmp_eop_nxt;
     reg                                                     tmp_valid,tmp_valid_nxt;
@@ -85,6 +93,7 @@ module tlp_demux #(
     
     assign in_data_wire  = in_data;
     assign in_hdr_wire   = in_hdr;
+    assign in_strb_wire  = in_strb;
     assign in_sop_wire   = in_sop;
     assign in_eop_wire   = in_eop;
     assign in_valid_wire = islegal & in_valid;
@@ -101,8 +110,8 @@ module tlp_demux #(
     // reg                                                     shut_w,shut_r;
     // 产生ready信号，控制状态转移
     always @* begin
-        // status_nxt   = status;
-        in_ready_nxt = in_ready;
+        // status_nxt = status;
+        in_ready_nxt  = in_ready;
         // 5种数据流向
         in_to_w   = 0;
         in_to_r   = 0;
@@ -138,14 +147,14 @@ module tlp_demux #(
         
         if (w_out_valid & w_out_ready) begin
             w_out_valid_nxt = 0;
-            w_out_sop_nxt = 0;
-            w_out_eop_nxt = 0;
+            w_out_sop_nxt   = 0;
+            w_out_eop_nxt   = 0;
         end
         
         if (r_out_ready & r_out_valid) begin
             r_out_valid_nxt = 0;
-            r_out_sop_nxt = 0;
-            r_out_eop_nxt = 0;
+            r_out_sop_nxt   = 0;
+            r_out_eop_nxt   = 0;
         end
         
         if (tmp_to_w | tmp_to_r) begin
@@ -158,18 +167,21 @@ module tlp_demux #(
     always @* begin
         tmp_data_nxt     = tmp_data;
         tmp_hdr_nxt      = tmp_hdr;
+        tmp_strb_nxt     = tmp_strb;
         tmp_sop_nxt      = tmp_sop;
         tmp_eop_nxt      = tmp_eop;
         // tmp_valid_nxt = tmp_valid;
         
         r_out_data_nxt     = r_out_data;
         r_out_hdr_nxt      = r_out_hdr;
+        r_out_strb_nxt     = r_out_strb;
         r_out_sop_nxt      = r_out_sop;
         r_out_eop_nxt      = r_out_eop;
         // r_out_valid_nxt = r_out_valid;
         
         w_out_data_nxt     = w_out_data;
         w_out_hdr_nxt      = w_out_hdr;
+        w_out_strb_nxt     = w_out_strb;
         w_out_sop_nxt      = w_out_sop;
         w_out_eop_nxt      = w_out_eop;
         // w_out_valid_nxt = w_out_valid;
@@ -177,6 +189,7 @@ module tlp_demux #(
         if (in_to_tmp) begin
             tmp_data_nxt     = in_data_wire;
             tmp_hdr_nxt      = in_hdr_wire;
+            tmp_strb_nxt     = in_strb_wire;
             tmp_sop_nxt      = in_sop_wire;
             tmp_eop_nxt      = in_eop_wire;
             // tmp_valid_nxt = in_valid_wire;
@@ -185,6 +198,7 @@ module tlp_demux #(
         if (in_to_r) begin
             r_out_data_nxt     = in_data_wire;
             r_out_hdr_nxt      = in_hdr_wire;
+            r_out_strb_nxt     = in_strb_wire;
             r_out_sop_nxt      = in_sop_wire;
             r_out_eop_nxt      = in_eop_wire;
             // r_out_valid_nxt = in_valid_wire;
@@ -193,6 +207,7 @@ module tlp_demux #(
         if (in_to_w) begin
             w_out_data_nxt     = in_data_wire;
             w_out_hdr_nxt      = in_hdr_wire;
+            w_out_strb_nxt     = in_strb_wire;
             w_out_sop_nxt      = in_sop_wire;
             w_out_eop_nxt      = in_eop_wire;
             // w_out_valid_nxt = in_valid_wire;
@@ -201,6 +216,7 @@ module tlp_demux #(
         if (tmp_to_r) begin
             r_out_data_nxt     = tmp_data;
             r_out_hdr_nxt      = tmp_hdr;
+            r_out_strb_nxt     = tmp_strb;
             r_out_sop_nxt      = tmp_sop;
             r_out_eop_nxt      = tmp_eop;
             // r_out_valid_nxt = tmp_valid;
@@ -209,6 +225,7 @@ module tlp_demux #(
         if (tmp_to_w) begin
             w_out_data_nxt     = tmp_data;
             w_out_hdr_nxt      = tmp_hdr;
+            w_out_strb_nxt     = tmp_strb;
             w_out_sop_nxt      = tmp_sop;
             w_out_eop_nxt      = tmp_eop;
             // w_out_valid_nxt = tmp_valid;
@@ -216,45 +233,51 @@ module tlp_demux #(
     end
     always @(posedge clk) begin
         if (!rst_n) begin
-            // status   <= 0;
-            in_ready <= 0;
+            // status <= 0;
+            in_ready  <= 0;
             
             tmp_data  <= 0;
             tmp_hdr   <= 0;
+            tmp_strb  <= 0;
             tmp_sop   <= 0;
             tmp_eop   <= 0;
             tmp_valid <= 0;
             
             r_out_data  <= 0;
             r_out_hdr   <= 0;
+            r_out_strb  <= 0;
             r_out_sop   <= 0;
             r_out_eop   <= 0;
             r_out_valid <= 0;
             
             w_out_data  <= 0;
             w_out_hdr   <= 0;
+            w_out_strb  <= 0;
             w_out_sop   <= 0;
             w_out_eop   <= 0;
             w_out_valid <= 0;
         end
         else begin
-            // status   <= status_nxt;
-            in_ready <= in_ready_nxt;
+            // status <= status_nxt;
+            in_ready  <= in_ready_nxt;
             
             tmp_data  <= tmp_data_nxt;
             tmp_hdr   <= tmp_hdr_nxt;
+            tmp_strb  <= tmp_strb_nxt;
             tmp_sop   <= tmp_sop_nxt;
             tmp_eop   <= tmp_eop_nxt;
             tmp_valid <= tmp_valid_nxt;
             
             r_out_data  <= r_out_data_nxt;
             r_out_hdr   <= r_out_hdr_nxt;
+            r_out_strb  <= r_out_strb_nxt;
             r_out_sop   <= r_out_sop_nxt;
             r_out_eop   <= r_out_eop_nxt;
             r_out_valid <= r_out_valid_nxt;
             
             w_out_data  <= w_out_data_nxt;
             w_out_hdr   <= w_out_hdr_nxt;
+            w_out_strb  <= w_out_strb_nxt;
             w_out_sop   <= w_out_sop_nxt;
             w_out_eop   <= w_out_eop_nxt;
             w_out_valid <= w_out_valid_nxt;

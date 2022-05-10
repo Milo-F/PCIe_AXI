@@ -27,6 +27,7 @@ module pcie_axi_m #(
     output                  [HEADER_SIZE-1:0]               cpl_tlp_hdr,
     output                  [TLP_STRB_WIDTH-1:0]            cpl_tlp_strb,
     output                                                  cpl_tlp_sop,
+    output                                                  cpl_tlp_eop,
     output                                                  cpl_tlp_valid,
     input                                                   cpl_tlp_ready,
 
@@ -81,12 +82,14 @@ module pcie_axi_m #(
 );
     wire                    [HEADER_SIZE-1:0]               w_out_hdr;
     wire                    [TLP_DATA_WIDTH-1:0]            w_out_data;
+    wire                                                    w_out_strb;
     wire                                                    w_out_sop;
     wire                                                    w_out_eop;
     wire                                                    w_out_valid;
     wire                                                    w_out_ready;
     wire                    [HEADER_SIZE-1:0]               r_out_hdr;
     wire                    [TLP_DATA_WIDTH-1:0]            r_out_data;
+    wire                                                    r_out_strb;
     wire                                                    r_out_sop;
     wire                                                    r_out_eop;
     wire                                                    r_out_valid;
@@ -99,24 +102,28 @@ module pcie_axi_m #(
         .PORTS(PORTS),
         .DOUBLE_WORD(DOUBLE_WORD),
         .HEADER_SIZE(HEADER_SIZE),
-        .TLP_DATA_WIDTH(TLP_DATA_WIDTH)
+        .TLP_DATA_WIDTH(TLP_DATA_WIDTH),
+        .TLP_STRB_WIDTH(TLP_STRB_WIDTH)
     ) tlp_demux_ins (
         .clk(clk),
         .rst_n(rst_n),
         .in_data(req_tlp_data),
         .in_hdr(req_tlp_hdr),
+        .in_strb(req_tlp_strb),
         .in_sop(req_tlp_sop),
         .in_eop(req_tlp_eop),
         .in_valid(req_tlp_valid),
         .in_ready(req_tlp_ready),
         .r_out_data(r_out_data),
         .r_out_hdr(r_out_hdr),
+        .r_out_strb(r_out_strb),
         .r_out_sop(r_out_sop),
         .r_out_eop(r_out_eop),
         .r_out_valid(r_out_valid),
         .r_out_ready(r_out_ready),
         .w_out_data(w_out_data),
         .w_out_hdr(w_out_hdr),
+        .w_out_strb(w_out_strb),
         .w_out_sop(w_out_sop),
         .w_out_eop(w_out_eop),
         .w_out_valid(w_out_valid),
@@ -128,6 +135,7 @@ module pcie_axi_m #(
         .DOUBLE_WORD(DOUBLE_WORD),
         .HEADER_SIZE(HEADER_SIZE),
         .TLP_DATA_WIDTH(TLP_DATA_WIDTH),
+        .TLP_STRB_WIDTH(TLP_STRB_WIDTH),
         .AXI_DATA_WIDTH(AXI_DATA_WIDTH),
         .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
         .AXI_STRB_WIDTH(AXI_STRB_WIDTH),
@@ -138,6 +146,7 @@ module pcie_axi_m #(
         .rst_n(rst_n),
         .tlp_hdr(w_out_hdr),
         .tlp_data(w_out_data),
+        .tlp_strb(w_out_strb),
         .tlp_sop(w_out_sop),
         .tlp_eop(w_out_eop),
         .tlp_valid(w_out_valid),
