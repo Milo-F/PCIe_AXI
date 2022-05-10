@@ -13,3 +13,4 @@
 6. [fifo_ram.v](./src/rtl/fifo_ram.v): fifo使用的仿真ram存储单元。
 
 ## Memory Read Request 时序
+![read_request时序](./figures/pcie_read%E6%97%B6%E5%BA%8F.jpg)
